@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ПТ-35/39-3.4/1.0 турбогенератор — сургалтын симулятор</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0E141A; --panel:#17202A; --panel2:#1E2933; --panel3:#253340;
+  --line:#2E3E4C; --line2:#3D5163;
+  --ink:#E8EFF5; --ink2:#B6C6D4; --muted:#7F94A6;
+  --amber:#F0B429; --amber-d:#8A6410;
+  --red:#E0503F; --red-d:#5E241C;
+  --green:#2FAE66; --green-d:#174C2E;
+  --cyan:#4CB9D6; --cyan-d:#1A4655;
+  --steam:#D8C7A0;
+  --shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 6px 18px rgba(0,0,0,.45);
+  --r:4px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:
+    radial-gradient(1200px 600px at 50% -10%, #1A2632 0%, transparent 60%),
+    var(--bg);
+  color:var(--ink);
+  font-family:'Inter','Segoe UI',Arial,sans-serif;
+  font-size:15px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4,.cond{font-family:'Oswald','Arial Narrow',Arial,sans-serif;letter-spacing:.01em}
+h2{font-size:27px;font-weight:600;margin:0 0 4px}
+h3{font-size:21px;font-weight:600;margin:26px 0 10px;color:var(--ink)}
+h4{font-size:17px;font-weight:600;margin:18px 0 6px;color:var(--ink2)}
+p{margin:0 0 12px;max-width:76ch}
+a{color:var(--cyan)}
+button{font-family:inherit;font-size:inherit}
+::selection{background:var(--amber);color:#0E141A}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+
+/* ---------- header ---------- */
+.top{
+  position:sticky;top:0;z-index:50;
+  background:linear-gradient(180deg,#1B2631 0%,#141C24 100%);
+  border-bottom:1px solid var(--line);
+}
+.top-in{max-width:1280px;margin:0 auto;padding:10px 20px;display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.mark{display:flex;align-items:baseline;gap:10px;margin-right:auto}
+.mark .unit{font-family:'Oswald';font-size:26px;font-weight:700;color:var(--amber);line-height:1}
+.mark .sub{font-size:12px;color:var(--muted);letter-spacing:.04em}
+.clock{font-family:'Oswald';font-size:15px;color:var(--ink2);border:1px solid var(--line);padding:3px 10px;border-radius:var(--r);background:#0F171E}
+.tabs{max-width:1280px;margin:0 auto;padding:0 12px;display:flex;gap:2px;overflow-x:auto}
+.tab{
+  background:transparent;border:0;border-bottom:2px solid transparent;color:var(--muted);
+  padding:9px 14px;cursor:pointer;white-space:nowrap;font-family:'Oswald';font-size:17px;font-weight:500;
+}
+.tab:hover{color:var(--ink2)}
+.tab.on{color:var(--amber);border-bottom-color:var(--amber)}
+
+/* ---------- mnemonic strip ---------- */
+.mnemo{background:#0B1116;border-bottom:1px solid var(--line)}
+.mnemo-in{max-width:1280px;margin:0 auto;padding:8px 20px;display:flex;align-items:center;gap:6px;overflow-x:auto}
+.node{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:74px}
+.node .dot{width:13px;height:13px;border-radius:50%;background:var(--green);border:2px solid #0B1116;box-shadow:0 0 0 1px var(--line)}
+.node.open .dot{background:var(--red);box-shadow:0 0 8px rgba(224,80,63,.7),0 0 0 1px var(--line)}
+.node .lab{font-family:'Oswald';font-size:12px;color:var(--muted);text-align:center;line-height:1.15}
+.pipe{flex:1;min-width:16px;height:2px;background:var(--line2);position:relative}
+.pipe.hot{background:linear-gradient(90deg,var(--amber-d),var(--amber))}
+
+/* ---------- layout ---------- */
+main{max-width:1280px;margin:0 auto;padding:22px 20px 80px}
+section{display:none}
+section.on{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.lead{color:var(--ink2);max-width:78ch}
+.grid2{display:grid;grid-template-columns:320px 1fr;gap:20px;align-items:start}
+@media(max-width:880px){.grid2{grid-template-columns:1fr}}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.card-h{padding:9px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;background:var(--panel2)}
+.card-h .t{font-family:'Oswald';font-size:17px;font-weight:600}
+.card-b{padding:14px}
+
+/* ---------- gauges ---------- */
+.gauges{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line)}
+.g{background:#0F171E;padding:9px 11px}
+.g .gl{font-size:11px;color:var(--muted);letter-spacing:.03em}
+.g .gv{font-family:'Oswald';font-size:25px;font-weight:600;color:var(--amber);line-height:1.1;font-variant-numeric:tabular-nums}
+.g .gv small{font-size:12px;color:var(--ink2);font-weight:400;margin-left:3px}
+.g .bar{height:3px;background:var(--panel3);margin-top:5px;border-radius:2px;overflow:hidden}
+.g .bar i{display:block;height:100%;background:var(--amber);width:0;transition:width .5s ease}
+.g.alarm .gv{color:var(--red)}
+.g.alarm .bar i{background:var(--red)}
+.g.ok .gv{color:var(--green)}
+
+/* ---------- steps ---------- */
+.stagebar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.st{
+  border:1px solid var(--line);background:var(--panel2);color:var(--muted);
+  padding:5px 11px;border-radius:var(--r);cursor:pointer;font-family:'Oswald';font-size:15px;
+}
+.st.on{border-color:var(--amber);color:var(--amber);background:#231D0E}
+.st.done{color:var(--green);border-color:var(--green-d)}
+.st.lock{opacity:.45;cursor:not-allowed}
+
+.step{
+  display:flex;gap:12px;padding:11px 13px;border:1px solid var(--line);border-radius:var(--r);
+  background:var(--panel);margin-bottom:7px;cursor:pointer;transition:border-color .15s,background .15s;
+}
+.step:hover{border-color:var(--line2);background:var(--panel2)}
+.step .n{font-family:'Oswald';font-size:16px;color:var(--muted);min-width:22px;padding-top:1px}
+.step .tx{flex:1}
+.step .tag{
+  display:inline-block;font-family:'Oswald';font-size:13px;font-weight:600;
+  background:var(--panel3);border:1px solid var(--line2);color:var(--cyan);
+  padding:0 6px;border-radius:3px;margin-right:6px;vertical-align:1px;
+}
+.step .note{display:block;font-size:13px;color:var(--muted);margin-top:4px}
+.step.done{border-color:var(--green-d);background:#101E17;cursor:default}
+.step.done .n{color:var(--green)}
+.step.done .n::after{content:" ✓"}
+.step.bad{animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.danger{
+  border-left:3px solid var(--red);background:#1B1210;padding:9px 12px;margin:8px 0;
+  font-size:13.5px;color:#F0C4BE;border-radius:0 var(--r) var(--r) 0;
+}
+.tip{border-left:3px solid var(--cyan);background:#0F1B21;padding:9px 12px;margin:8px 0;font-size:13.5px;color:#BFE0EC;border-radius:0 var(--r) var(--r) 0}
+
+/* ---------- journal ---------- */
+.jrn{font-family:'Oswald';font-size:13.5px;max-height:260px;overflow-y:auto;padding:6px 0}
+.jrn div{padding:3px 12px;border-bottom:1px solid #131C24;display:flex;gap:8px;color:var(--ink2)}
+.jrn div span{color:var(--muted);min-width:52px;font-variant-numeric:tabular-nums}
+.jrn div.err{color:#F0A79E}
+.jrn div.ok{color:#96DDB4}
+
+/* ---------- buttons ---------- */
+.btn{
+  background:var(--panel3);border:1px solid var(--line2);color:var(--ink);
+  padding:7px 15px;border-radius:var(--r);cursor:pointer;font-weight:500;font-size:14px;
+}
+.btn:hover{background:#2E3F4E}
+.btn.pri{background:var(--amber);border-color:var(--amber);color:#141A08;font-weight:600}
+.btn.pri:hover{background:#FFC63F}
+.btn.gh{background:transparent}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* ---------- tables ---------- */
+table{border-collapse:collapse;width:100%;font-size:14px;margin:10px 0}
+th,td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+th{background:var(--panel2);font-family:'Oswald';font-size:15px;font-weight:600;color:var(--ink2)}
+td.num{font-variant-numeric:tabular-nums;font-family:'Oswald';font-size:15px;color:var(--amber)}
+tbody tr:nth-child(even){background:#141D25}
+.scroll{overflow-x:auto}
+
+/* ---------- quiz / drills ---------- */
+.q{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);margin-bottom:12px}
+.q-h{padding:11px 14px;border-bottom:1px solid var(--line);font-weight:500}
+.q-h b{color:var(--amber);font-family:'Oswald';font-size:16px;margin-right:8px}
+.opts{padding:8px 14px 14px;display:grid;gap:6px}
+.opt{
+  display:flex;gap:10px;align-items:flex-start;padding:8px 11px;border:1px solid var(--line);
+  border-radius:var(--r);cursor:pointer;background:#141D25;font-size:14.5px;
+}
+.opt:hover{border-color:var(--line2)}
+.opt.sel{border-color:var(--amber);background:#231D0E}
+.opt.right{border-color:var(--green);background:#0F1E16}
+.opt.wrong{border-color:var(--red);background:#1C1210}
+.opt .k{font-family:'Oswald';color:var(--muted);min-width:16px}
+.expl{padding:0 14px 12px;font-size:13.5px;color:var(--ink2);border-top:1px dashed var(--line);margin-top:2px;padding-top:10px}
+.numin{background:#0F171E;border:1px solid var(--line2);color:var(--amber);font-family:'Oswald';
+  font-size:17px;padding:4px 8px;width:96px;border-radius:var(--r);text-align:right}
+.numin.right{border-color:var(--green);color:var(--green)}
+.numin.wrong{border-color:var(--red);color:var(--red)}
+
+.sortlist{display:grid;gap:5px}
+.sortitem{display:flex;gap:10px;align-items:center;padding:8px 11px;border:1px solid var(--line);border-radius:var(--r);background:#141D25;cursor:grab;font-size:14.5px}
+.sortitem.drag{opacity:.4}
+.sortitem .h{color:var(--muted);font-size:16px}
+.sortitem.right{border-color:var(--green);background:#0F1E16}
+.sortitem.wrong{border-color:var(--red);background:#1C1210}
+
+/* ---------- exam ---------- */
+.examhead{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:10px 14px;background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);margin-bottom:14px;position:sticky;top:96px;z-index:20}
+.timer{font-family:'Oswald';font-size:26px;font-weight:600;color:var(--amber);font-variant-numeric:tabular-nums}
+.timer.warn{color:var(--red)}
+.prog{flex:1;min-width:120px;height:4px;background:var(--panel3);border-radius:2px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--cyan);width:0;transition:width .3s}
+.score{text-align:center;padding:30px 20px}
+.score .big{font-family:'Oswald';font-size:76px;font-weight:700;line-height:1;color:var(--amber)}
+.score .verdict{font-family:'Oswald';font-size:25px;margin-top:6px}
+.pass{color:var(--green)} .fail{color:var(--red)}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;max-width:320px}
+.field label{font-size:13px;color:var(--muted)}
+.field input,.field select{background:#0F171E;border:1px solid var(--line2);color:var(--ink);padding:7px 10px;border-radius:var(--r);font-family:inherit;font-size:14px}
+
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 14px;font-size:14px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-family:'Oswald';font-size:16px;color:var(--ink)}
+.badge{display:inline-block;font-size:11.5px;padding:1px 7px;border-radius:10px;border:1px solid var(--line2);color:var(--muted)}
+.badge.r{color:var(--red);border-color:var(--red-d);background:#1B1210}
+.badge.g{color:var(--green);border-color:var(--green-d);background:#0F1E16}
+.badge.a{color:var(--amber);border-color:var(--amber-d);background:#231D0E}
+hr{border:0;border-top:1px solid var(--line);margin:26px 0}
+.foot{max-width:1280px;margin:0 auto;padding:18px 20px 40px;color:var(--muted);font-size:13px;border-top:1px solid var(--line)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+svg .lbl{font-family:'Oswald';font-size:12px;fill:#8FA3B4}
+@media print{
+  body{background:#fff;color:#111}
+  .top,.tabs,.mnemo,.foot,.btn,.row{display:none!important}
+  .card,.q{border-color:#bbb;background:#fff;box-shadow:none}
+  .card-h{background:#eee}
+  .score .big{color:#111}.kv dd{color:#111}
+  section{display:none!important}section.on{display:block!important}
+}
+svg .lbl2{font-family:'Oswald';font-size:13px;fill:#E8EFF5}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-in">
+    <div class="mark">
+      <div class="unit">ПТ-35/39-3.4/1.0</div>
+      <div class="sub">ДДЦС ТӨХК · Турбин цех · ТГ сургалтын симулятор</div>
+    </div>
+    <div class="clock" id="clock">—</div>
+  </div>
+  <nav class="tabs" id="tabs">
+    <button class="tab on" data-go="intro">Танилцуулга</button>
+    <button class="tab" data-go="start">Явуулах дараалал</button>
+    <button class="tab" data-go="stop">Зогсоох дараалал</button>
+    <button class="tab" data-go="drill">Дасгал ажил</button>
+    <button class="tab" data-go="emerg">Аваарь эсэргүүцэх</button>
+    <button class="tab" data-go="exam">Шалгах тест</button>
+  </nav>
+  <div class="mnemo"><div class="mnemo-in" id="mnemo"></div></div>
+</header>
+
+<main>
+
+<!-- ================= INTRO ================= -->
+<section id="intro" class="on">
+  <h2>Турбогенераторын сургалтын симулятор</h2>
+  <p class="lead">Энэ загвар нь ПТ-35/39-3.4/1.0 маркийн турбины ашиглалтын заавар (Дархан, 2019), «Турбиныг халаах болон зогсоох дараалал» (2026.03.02) болон симулятор программын өргөтгөлийн ажлын даалгавар дээр суурилсан. Явуулах, зогсоох дарааллыг алхам алхмаар гүйцэтгэж, дасгал ажил хийж, эцэст нь мэдлэгээ тестээр шалгана.</p>
+
+  <div class="cols" style="margin-top:18px">
+    <div class="card"><div class="card-h"><span class="t">Турбины үндсэн үзүүлэлт</span></div><div class="card-b">
+      <dl class="kv">
+        <dt>Хэвийн чадал</dt><dd>35 МВт</dd>
+        <dt>Боломжит дээд</dt><dd>39 МВт</dd>
+        <dt>Эргэлтийн давтамж</dt><dd>50 с⁻¹ · 3000 эрг/мин</dd>
+        <dt>Хурц уурын даралт</dt><dd>3.4 МПа · 34.67 кгс/см²</dd>
+        <dt>Хурц уурын температур</dt><dd>435 °C</dd>
+        <dt>Үеийн тоо</dt><dd>17 (ӨДХ 8 · ДДХ 5 · НДХ 4)</dd>
+        <dt>Критик эргэлт</dt><dd>1312 ба 1718 эрг/мин</dd>
+        <dt>Цилиндр</dt><dd>1 ш</dd>
+      </dl>
+    </div></div>
+
+    <div class="card"><div class="card-h"><span class="t">Тохируулгатай отбор</span></div><div class="card-b">
+      <dl class="kv">
+        <dt>Үйлдвэрийн (8-р үе)</dt><dd>1.0 МПа · 292 °C · 75 т/ц</dd>
+        <dt>Тохируулах хязгаар</dt><dd>0.8–1.3 МПа</dd>
+        <dt>Дулааны (13-р үе)</dt><dd>0.12 МПа · 108 °C · 85 т/ц</dd>
+        <dt>Тохируулах хязгаар</dt><dd>0.1–0.25 МПа</dd>
+        <dt>Отбор залгах доод ачаалал</dt><dd>10.5 МВт (30 %)</dd>
+        <dt>Тохируулгагүй отбор</dt><dd>3 ш (9, 15-р үе г.м.)</dd>
+      </dl>
+    </div></div>
+
+    <div class="card"><div class="card-h"><span class="t">Үндсэн тоноглол</span></div><div class="card-b">
+      <dl class="kv">
+        <dt>Конденсатор</dt><dd>КП-1650-4М · 1650 м²</dd>
+        <dt>Үндсэн эжектор</dt><dd>ЭО-50М-1 · 2 үе</dd>
+        <dt>Явуулах эжектор</dt><dd>ЭП-150/II</dd>
+        <dt>Нягтруулгын эжектор</dt><dd>ЭУ-400-1</dd>
+        <dt>КЭН</dt><dd>ЭКН-160-55 · 2 ш (5а, 5б)</dd>
+        <dt>НДХ</dt><dd>ПН-90-1 · 90 м²</dd>
+        <dt>ӨДХ</dt><dd>ПВ-110 · 110 м²</dd>
+        <dt>Тосны бак</dt><dd>11 м³</dd>
+      </dl>
+    </div></div>
+  </div>
+
+  <h3>Үндсэн схемийн өнгө</h3>
+  <p>Симуляторт станцын үндсэн схемийн уламжлалт дүрмийг баримталсан:</p>
+  <div class="row" style="margin-bottom:14px">
+    <span class="badge r">● улаан — нээлттэй / ажилд залгагдсан</span>
+    <span class="badge g">● ногоон — хаалттай / зогссон</span>
+    <span class="badge a">0–100 % — нээх үйлдэл</span>
+    <span class="badge a">100–0 % — хаах үйлдэл</span>
+  </div>
+
+  <h3>Вакум ба абсолют даралтын харьцаа</h3>
+  <p>Ашиглалтын зааварт конденсаторын төлөвийг <b>абсолют даралтаар</b>, ажлын даалгаварт <b>вакуумаар</b> өгсөн байдаг. Дархан хотын нөхцөлд агаарын даралт ≈ 93 кПа тул хоёр тоо ижил босгыг илэрхийлнэ:</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Үйлдэл</th><th>Вакум</th><th>Абсолют даралт</th><th>мм м.у.б</th></tr></thead>
+    <tbody>
+      <tr><td>Үндсэн эжекторын 1-р үед уур өгнө</td><td class="num">33 кПа</td><td class="num">60 кПа</td><td class="num">≈250</td></tr>
+      <tr><td>Турбинд эргэлт өгөхийг зөвшөөрнө</td><td class="num">&gt;45 кПа</td><td class="num">&lt;48 кПа</td><td class="num">≈350–400</td></tr>
+      <tr><td>Явуулах эжекторыг зогсооно</td><td class="num">71 кПа</td><td class="num">21,6 кПа</td><td class="num">≈530</td></tr>
+      <tr><td>Сул эргэлтийн хэвийн утга</td><td class="num">≈85 кПа</td><td class="num">≤8 кПа</td><td class="num">—</td></tr>
+      <tr><td>Зогсоох үеийн дохиолол</td><td class="num">↓</td><td class="num">60 кПа</td><td class="num">—</td></tr>
+      <tr><td>Турбины хамгаалалт ажиллана</td><td class="num">↓</td><td class="num">40 кПа</td><td class="num">—</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Хаалт, арматурын бүртгэл</h3>
+  <p>Дараах тэмдэглэгээ нь Автонет удирдлагын системийн дэлгэц дээрх хаалтын дугаартай нийцнэ. Дасгал ажлын «Хаалт таних» хэсэгт эдгээрийг шалгана.</p>
+  <div class="scroll"><table id="valvetbl"><thead><tr><th style="width:88px">Тэмдэглэгээ</th><th>Нэр</th><th style="width:150px">Систем</th></tr></thead><tbody></tbody></table></div>
+
+  <h3>Ашигласан эх сурвалж</h3>
+  <ul style="color:var(--ink2);font-size:14px;max-width:78ch">
+    <li>«Ашиглалтын заавар ПТ-35/39-3.4/1.0», ДДЦС турбин цех, Дархан хот, 2019.</li>
+    <li>«ПТ-35/39-3.4/1.0 турбиныг халаах болон зогсоох дараалал», 2026.03.02 — хаалтын дугаарлалт, 0–100 % үйлдлүүд.</li>
+    <li>«Турбингенераторын симулятор программын өргөтгөл, аваарь эсэргүүцэх дасгалын нэмэлт программ боловсруулах ажлын даалгавар», ДДЦС ТӨХК.</li>
+    <li>Турбины явуулах график (хүйтэн / халуун байдлаас) — ашиглалтын зааврын хавсралт.</li>
+  </ul>
+
+  <div class="danger" style="margin-top:16px"><b>Анхаар.</b> Энэ бол сургалтын загвар. Бодит тоноглол дээр ажиллахдаа зөвхөн батлагдсан ашиглалтын заавар, ажлын даалгаврыг мөрдөнө. Эх баримтуудын хооронд илэрсэн зөрүүг доор тэмдэглэв: турбогенераторын дээд чадал — ашиглалтын зааварт 39 МВт, ажлын даалгаварт 60 МВт; зогсоолтын үеийн эхний ачааллын түвшин — 10,5 МВт ба 15 МВт.</div>
+</section>
+<!-- ================= START ================= -->
+<section id="start">
+  <h2>Турбиныг явуулах дараалал</h2>
+  <p class="lead">7 үе шат, нийт <b id="startCount">—</b> үйлдэл. Үйлдлийг <b>зөв дарааллаар</b> сонгоно — алдаатай сонголт журналд бүртгэгдэнэ. Үе шат бүрэн гүйцэтгэгдсэний дараа дараагийнх нээгдэнэ.</p>
+  <div class="stagebar" id="startStages"></div>
+  <div class="grid2">
+    <div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-h"><span class="t">Горимын параметр</span></div>
+        <div class="gauges" id="startGauges"></div>
+      </div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-h"><span class="t">Шуурхай ажиллагааны журнал</span>
+          <button class="btn gh" style="margin-left:auto;padding:2px 9px;font-size:12px" onclick="SIM.reset('start')">Дахин эхлэх</button></div>
+        <div class="jrn" id="startJrn"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="t">Гүйцэтгэлийн үзүүлэлт</span></div>
+        <div class="card-b" id="startScore"></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-h"><span class="t" id="startStageT">—</span><span class="badge a" style="margin-left:auto" id="startStageN"></span></div>
+        <div class="card-b">
+          <div id="startNote"></div>
+          <div id="startSteps"></div>
+        </div>
+      </div>
+      <div id="startDiag" style="margin-top:16px"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= STOP ================= -->
+<section id="stop">
+  <h2>Турбин болон туслах тоноглолыг зогсоох дараалал</h2>
+  <p class="lead">Аваарийн бус зогсоолт. Цехийн дарга буюу ээлжийн инженерийн шийдвэрээр 5 үе шаттайгаар гүйцэтгэнэ.</p>
+  <div class="stagebar" id="stopStages"></div>
+  <div class="grid2">
+    <div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-h"><span class="t">Горимын параметр</span></div>
+        <div class="gauges" id="stopGauges"></div>
+      </div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-h"><span class="t">Шуурхай ажиллагааны журнал</span>
+          <button class="btn gh" style="margin-left:auto;padding:2px 9px;font-size:12px" onclick="SIM.reset('stop')">Дахин эхлэх</button></div>
+        <div class="jrn" id="stopJrn"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span class="t">Гүйцэтгэлийн үзүүлэлт</span></div>
+        <div class="card-b" id="stopScore"></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-h"><span class="t" id="stopStageT">—</span><span class="badge a" style="margin-left:auto" id="stopStageN"></span></div>
+        <div class="card-b">
+          <div id="stopNote"></div>
+          <div id="stopSteps"></div>
+        </div>
+      </div>
+      <div id="stopDiag" style="margin-top:16px"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= DRILL ================= -->
+<section id="drill">
+  <h2>Дасгал ажил</h2>
+  <p class="lead">Таван төрлийн дасгал. Хариултаа шалгасны дараа тайлбар харагдана.</p>
+  <div class="stagebar" id="drillTabs"></div>
+  <div id="drillBody"></div>
+</section>
+
+<!-- ================= EMERGENCY ================= -->
+<section id="emerg">
+  <h2>Аваарь эсэргүүцэх дасгал</h2>
+  <p class="lead">Бодит нөхцөл байдлыг өгсөн. Оператор эхлээд ямар үйлдэл хийх вэ? Сонголт бүрийн үр дагаврыг тайлбартай харна.</p>
+  <div id="emergBody"></div>
+  <div class="card" style="margin-top:18px"><div class="card-h"><span class="t">Дүн</span></div><div class="card-b" id="emergScore">Сценариудыг гүйцэтгэнэ үү.</div></div>
+</section>
+
+<!-- ================= EXAM ================= -->
+<section id="exam">
+  <h2>Шалгах тест</h2>
+  <div id="examLogin">
+    <p class="lead">20 асуулт, 30 асуултын сангаас санамсаргүй сонгогдоно. Хугацаа 15 минут. Тэнцэх босго 70 %.</p>
+    <div class="card" style="max-width:420px"><div class="card-h"><span class="t">Шалгуулагчийн мэдээлэл</span></div><div class="card-b">
+      <div class="field"><label>Овог</label><input id="exSur" placeholder="Овог"></div>
+      <div class="field"><label>Нэр</label><input id="exName" placeholder="Нэр"></div>
+      <div class="field"><label>Албан тушаал</label><select id="exJob">
+        <option>Турбины машинист</option><option>Турбины ахлах машинист</option>
+        <option>Ээлжийн инженер</option><option>Турбины ашиглалтын инженер</option>
+        <option>Засварын инженер</option><option>Сурагч /Дадлагажигч/Бусад </option></select></div>
+      <button class="btn pri" onclick="EXAM.start()">Шалгалт эхлүүлэх</button>
+    </div></div>
+  </div>
+  <div id="examRun" style="display:none">
+    <div class="examhead">
+      <div class="timer" id="exTimer">15:00</div>
+      <div class="prog"><i id="exProg"></i></div>
+      <div class="cond" style="font-size:16px;color:var(--ink2)" id="exCount">0 / 20</div>
+      <button class="btn pri" onclick="EXAM.finish(false)">Дуусгах</button>
+    </div>
+    <div id="examQs"></div>
+    <button class="btn pri" style="margin-top:8px" onclick="EXAM.finish(false)">Хариултаа илгээх</button>
+  </div>
+  <div id="examDone" style="display:none"></div>
+</section>
+
+</main>
+<div class="foot">ПТ-35/39-3.4/1.0 турбогенераторын сургалтын симулятор · ДДЦС ТӨХК турбин цех · интерактив сургалтын хэрэглэгдэхүүн</div>
+<script>
+/* ============================================================
+   ПТ-35/39-3.4/1.0 сургалтын симулятор — өгөгдлийн сан
+   Эх сурвалж: Ашиглалтын заавар (2019), Халаах/зогсоох дараалал (2026.03.02),
+               Симулятор программын өргөтгөлийн ажлын даалгавар
+   ============================================================ */
+
+const VALVES = [
+ ["3п5","Хурц уурын коллекторын хаалт","Хурц уур"],
+ ["S101","Уурын ерөнхий хаалт (ГПЗ)","Хурц уур"],
+ ["S102","ГПЗ-ийн тойруу хаалт 1","Хурц уур"],
+ ["S103","ГПЗ-ийн тойруу хаалт 2","Хурц уур"],
+ ["S49, S51","Хурц уурын салаа шугамын дренаж","Дренаж"],
+ ["S52","Салаа шугамын дренажийг станцын магистральд өгөх","Дренаж"],
+ ["S75, S76","ГПЗ-ийн дараах дренаж","Дренаж"],
+ ["S71–S74","Турбины их биеийн дренаж","Дренаж"],
+ ["S65–S69","Бүлэг дренаж","Дренаж"],
+ ["∇2","ГПЗ-ийн дараах даралт шалгах вентил","Хурц уур"],
+ ["∇5","Зогсоох хавхлагуудын дренаж","Дренаж"],
+ ["∇8","Турбины уурын хайрцгийн өмнөх дренаж","Дренаж"],
+ ["∇12,5","3п5-аас ГПЗ хүртэлх шугамын дренаж","Дренаж"],
+ ["S12","Конденсаторын тогооны түвшний регулятор","Конденсац"],
+ ["S20, S21","НДХ-ийн түвшний регуляторууд","Сэргээн халаалт"],
+ ["S22, S23","ӨДХ-ийн түвшний регуляторууд","Сэргээн халаалт"],
+ ["S24, S25","Отборуудын цахилгаан хаалт","Отбор"],
+ ["S26.1, S26.2","Хувирсан усны НДХ руу орох/гарах хаалт","Сэргээн халаалт"],
+ ["S27","Хувирсан усны НДХ-ийн тойруу шугамын хаалт","Сэргээн халаалт"],
+ ["S28","ӨДХ-д уур өгөх цахилгаан хаалт","Сэргээн халаалт"],
+ ["S29","Турбины отбороос НДХ-д уур өгөх хаалт","Сэргээн халаалт"],
+ ["S30","Нягтруулгын эжекторт уур өгөх хаалт","Конденсац"],
+ ["S31","Үндсэн эжекторт уур өгөх хаалт","Конденсац"],
+ ["S32","Явуулах эжекторт уур өгөх хаалт","Конденсац"],
+ ["S33, S34","КЭН-ий шахах талын хаалтууд","Конденсац"],
+ ["S36","Түвшний регулятораас НДХ-д хувирсан ус өгөх","Сэргээн халаалт"],
+ ["S37","Хувирсан усны рециркуляцийн шугамын хаалт","Конденсац"],
+ ["S38","НДХ-ийн конденсатыг дренажийн тэлэгчид өгөх","Сэргээн халаалт"],
+ ["S39","Нягтруулгаас дренажийн тэлэгчид уур өгөх","Нягтруулга"],
+ ["S40, S41","Хөргөх конденсат цацах хаалтууд","Нягтруулга"],
+ ["S43","Нягтруулгын регулятороос НДХ-д уур өгөх","Нягтруулга"],
+ ["S44","Эжекторуудын тойруу хаалт","Конденсац"],
+ ["S45","Хувирсан усны түвшний регуляторын тойруу","Конденсац"],
+ ["S46","Нягтруулгын уурын регуляторын тойруу хаалт","Нягтруулга"],
+ ["S48","Нягтруулгын уурын регуляторын өмнөх хаалт","Нягтруулга"],
+ ["S54","Уур-агаарын холимог сорох шугамын хаалт","Конденсац"],
+ ["S55","Дулааны отбороос деаэраторт уур өгөх","Отбор"],
+ ["S60, S61","Тэжээлийн ус ӨДХ руу орох/гарах хаалт","Сэргээн халаалт"],
+ ["S62","Тэжээлийн усны ӨДХ-ийг тойрох шугамын хаалт","Сэргээн халаалт"],
+ ["S70","Нягтруулгын системийн уурын шугамын дренаж","Нягтруулга"],
+ ["S77","Конденсаторын тогоо дүүргэх хаалт","Конденсац"],
+ ["S80, S81","Эргэлтийн ус конденсатор руу орох хаалт","Эргэлтийн ус"],
+ ["S82, S83","Эргэлтийн ус конденсатораас гарах хаалт","Эргэлтийн ус"],
+ ["S84","Генераторын хөргөлтийн ус өгөх хаалт","Эргэлтийн ус"],
+ ["S85","Тос хөргөгчид хөргөлтийн ус өгөх хаалт","Тос хангамж"],
+ ["S86–S88","Тос хөргөгчийн усны орох хаалтууд","Тос хангамж"],
+ ["S89–S91","Тос хөргөгчийн усны гарах хаалтууд","Тос хангамж"],
+ ["S106","Үйлдвэрийн уурын коллекторын секцийн хаалт","Үйлдвэрийн уур"],
+ ["ВД1","Зогсоох хавхлагуудын түргэн таслах төхөөрөмж","Хамгаалалт"],
+ ["НП","Тосны явуулах цахилгаан насос","Тос хангамж"],
+ ["НС","Тосны зогсоох цахилгаан насос","Тос хангамж"],
+ ["НА","Тосны аваарийн цахилгаан насос","Тос хангамж"],
+ ["КЭН-5а/5б","Хувирсан усны насосууд","Конденсац"],
+ ["ГЭБ (НВ)","Гол эргүүлэх байгууламж","Механик"],
+ ["АХА","Автомат хэт эргэлтийн хамгаалалт","Хамгаалалт"]
+];
+
+/* Мнемо схемийн зангилаа: [нэр, төлөвийн түлхүүр] */
+const MNEMO = [
+ ["3п5","n3p5"],["ГПЗ S101","gpz"],["Ст.клапан","sk"],["Бүлэг клапан","bk"],
+ ["Турбин","turb"],["Конденсатор","cond"],["Эжектор","ej"],["Генератор","gen"]
+];
+
+/* ---------- Гүйцэтгэлийн параметр ---------- */
+const GAUGES = [
+ {k:"rpm",  l:"Эргэлтийн давтамж", u:"эрг/мин", max:3400, d:0},
+ {k:"load", l:"Цахилгаан ачаалал", u:"МВт",     max:39,   d:1},
+ {k:"steamP",l:"Хурц уурын даралт",u:"ата",     max:36,   d:1},
+ {k:"steamT",l:"Хурц уурын t",     u:"°C",      max:450,  d:0},
+ {k:"vac",  l:"Конденсаторын вакуум",u:"кПа",   max:90,   d:0},
+ {k:"oilP", l:"Холхивчийн өмнөх тос",u:"кПа",   max:120,  d:0},
+ {k:"oilT", l:"Тосны температур",  u:"°C",      max:60,   d:0},
+ {k:"exp",  l:"Голын харьц. тэлэлт",u:"мм",     max:3,    d:2}
+];
+const P0 = {rpm:0,load:0,steamP:0,steamT:20,vac:0,oilP:0,oilT:22,exp:0,
+            n3p5:0,gpz:0,sk:0,bk:0,turb:0,cond:0,ej:0,gen:0};
+
+/* ============ ЯВУУЛАХ ДАРААЛАЛ ============ */
+const START = [
+{
+ n:"Ү1 · Эргэлтийн ус ба тос хангамжийн систем бэлтгэх",
+ note:"Ашиглалтын заавар 2.3. Тосны систем бэлэн биш бол турбины бусад ажил эхлэхгүй.",
+ steps:[
+  {tag:"S80·S81·S82·S83", t:"Эргэлтийн усны конденсатор руу орох, гарах хаалтуудыг бүрэн нээнэ", note:"0–100 %"},
+  {t:"Эргэлтийн усны насос ажилд бэлэн эсэхийг шалгана"},
+  {tag:"S84·S85", t:"Генератор болон тос хөргөгчид хөргөлтийн ус өгөх хаалтуудыг нээнэ"},
+  {tag:"S86–S88", t:"Тос хөргөгчийн усны орох хаалтуудыг нээж усаар дүүргэн агаарыг бүрэн гаргана", note:"Гарах хаалтууд (S89–S91) хаалттай байхыг эхлээд шалгана"},
+  {tag:"ВД1", t:"Зогсоох хавхлагуудын түргэн таслах төхөөрөмжийг удирдлагын щитнээс цэнэглэнэ"},
+  {tag:"НС", t:"Тосны зогсоох цахилгаан насосыг явуулж холхивчийн өмнөх даралт 0.1 МПа байгааг шалгаад зогсооно", set:{oilP:100}},
+  {tag:"НА", t:"Тосны аваарийн цахилгаан насосыг явуулж мөн адил шалгаад зогсооно", note:"Угсралтын дараа НА ба НС-ийг 3-аас багагүй цаг ачаалалтай туршина", set:{oilP:100}},
+  {tag:"НП", t:"Тосны явуулах цахилгаан насосыг явуулж хэвийн ажиллагааг шалгана", set:{oilP:90}},
+  {t:"2 тос хөргөгчийг тосоор дүүргэж ажилд залгана, 3 дахийг бэлтгэлд үлдээнэ", note:"Орох ба гарах хаалтууд нээлттэй; агаарын бөмбөлөггүй тосны урсгал гарсны дараа сорьцын хаалтыг хаана"},
+  {t:"Холхивчийн өмнөх тосны даралт 50–100 кПа, тосны халуун 40–45 °C болгож тохируулна", set:{oilP:75,oilT:42}, danger:"Тосны халуун 30 °C-аас бага үед турбиныг явуулахыг хориглоно."},
+  {tag:"НА·НС", t:"Тосны аваарийн ба зогсоох насосуудын АВР-ыг шалгана", note:"30 кПа → анхааруулах дохио · 25 кПа → насос автоматаар залгагдана"},
+  {tag:"ГЭБ", t:"Гол эргүүлэх байгууламжийг явуулж,хэвийн ажиллагааг шалгана", note:"Блокировк: холхивчийн өмнөх тос 25 кПа-аас багасахад ГЭБ автоматаар зогсоно"}
+ ]
+},
+{
+ n:"Ү2 · Хамгаалалт, тохируулга, блокировкийг ажиллаагүй турбин дээр шалгах",
+ note:"Ашиглалтын заавар 2.4. Турбин эргэлгүй, уур өгөөгүй үед гүйцэтгэнэ.",
+ steps:[
+  {tag:"S101·S102·S103", t:"Уурын ерөнхий хаалт болон түүний тойруу хаалтууд хаалттай эсэхийг шалгана"},
+  {t:"Зогсоох хавхлага, автомат таслуур, алсын унтраалгуудын ажиллагааг шалгана", note:"Автомат таслуурыг «РАБОТА» байрлалд; захлопкуудын алсын унтраалга салгаатай"},
+  {t:"Зогсоох хавхлагуудыг цахилгаан хөдөлгүүрээр нээж, бүрэн нээгдсэний дараа хөдөлгүүр автоматаар салгагдахыг шалгана"},
+  {t:"Автомат таслуурын гар унтраалгыг дарж зогсоох хавхлагууд автоматаар хаагдахыг шалгана", note:"Хамгаалалт шалгах явцад зогсоох хавхлагуудыг 2–3 удаа нээнэ"},
+  {t:"Тосолгооны системийн даралтын гидравлик релег шалгана", note:"Тос хөргөгчийн орох хаалтыг аажмаар хааж даралтыг 25–20 кПа хүртэл багасгана; Р5 датчик дээр даралт 0 болно"},
+  {t:"Захлопкуудын реле болон алсын унтраалгын ажиллагааг шалгана"},
+  {t:"Хамгаалалтуудыг параметрийг зохиомлоор өөрчлөх замаар ээлж дараалан шалгана", note:"Гол шилжилт · эргэлтийн давтамж · тосны даралт · конденсаторын даралт · хурц уурын t · доргио"},
+  {tag:"S37·S38", t:"ӨДХ-ийн хамгаалалтын гүйцэтгэх төхөөрөмжүүдийн ажиллагааг шалгана", note:"Түвшинг зохиомлоор хамгаалалтын тавилд хүргэж нэвтрүүлэх ба буцаахгүй клапангуудын ажиллагааг хянана"},
+  {t:"Тохируулах клапангуудыг гараар хаах сэлгүүрийн ажиллагааг шалгана"}
+ ]
+},
+{
+ n:"Ү3 · Хурц уурын шугамыг уурын ерөнхий хаалт хүртэл халаах",
+ note:"Халаах дараалал: 3п5 → ГПЗ → бүлэг клапан → турбин. Халаах хурд 5 °C/мин-аас ихгүй.",
+ steps:[
+  {tag:"S101·S102·S103", t:"Уурын ерөнхий хаалт болон тойруу хаалтууд бүрэн хаалттай эсэхийг шалгаж хаана", note:"100–0 %"},
+  {tag:"∇12,5", t:"3п5-аас уурын ерөнхий хаалт хүртэлх шугамын дренажуудыг нээнэ", note:"0–100 %"},
+  {tag:"∇2", t:"Уурын ерөнхий хаалтын дараах даралт шалгах вентилийг нээнэ", note:"0–100 %"},
+  {tag:"3п5", t:"3п5 хаалтын тойрууг нээж хурц уурын шугамыг ГПЗ хүртэл халааж эхэлнэ", set:{n3p5:1,steamP:5,steamT:120}},
+  {t:"Шугамын даралтыг бага багаар ажлын даралт хүртэл ихэсгэнэ", note:"0 → 35 ата, температур 0 → 435 °C", set:{steamP:35,steamT:435}, danger:"Уурын ерөнхий шугамыг 5 °C/мин-с ихгүй хурдаар халаана."},
+  {t:"Даралт шалгах вентилээр уур нэвчиж байвал ГПЗ болон тойруу хаалтуудын нягт хаагдсаныг шалгана", danger:"Уурын ерөнхий болон тойруу хаалтууд их хэмжээгээр уур алдаж байхад турбиныг явуулахыг хориглоно."},
+  {t:"Уур ажиллаагүй турбин руу орохгүй байгааг хянана"},
+  {t:"Параметр гүйцсэний дараа дренажийг хааж, шуурхай ажиллагааны журналд тэмдэглэнэ"}
+ ]
+},
+{
+ n:"Ү4 · Конденсацийн төхөөрөмжийг явуулах",
+ note:"Ашиглалтын заавар 2.6 / дараалал 2.1. Уурын шугам халаахтай хамтатган гүйцэтгэнэ.",
+ steps:[
+  {tag:"S77", t:"Конденсаторын тогоо дахь хувирсан усны түвшинг шалгаж, шаардлагатай бол шилэн хэмжүүрийн 2/3 хүртэл дүүргэнэ", note:"0–100 %, дүүргэсний дараа сайтар хаана", set:{cond:1}},
+  {tag:"S48·S46·S32·S31·S30", t:"Конденсацийн төхөөрөмжийн бүх уурын цахилгаан хаалтууд хаалттай эсэхийг шалгана", note:"100–0 %"},
+  {tag:"S106", t:"Үйлдвэрийн уурын коллекторын секцийн хаалтын дренажуудыг нээж, хаалтыг аажмаар нээн коллекторыг халаана", note:"8–13 ата, 200–300 °C"},
+  {t:"Үйлдвэрийн уурын шугамын анхдагч гар хаалтыг аажмаар нээж халаасны дараа ерөнхий цахилгаан хаалтыг нээнэ"},
+  {tag:"S32", t:"Явуулах эжекторт уур өгөх хаалтыг аажмаар нээж эжекторыг халаана", note:"0–100 %"},
+  {tag:"S82·S83", t:"Эргэлтийн усны гарах 2 цахилгаан хаалтыг нээж юүлэгч вентилүүдийг хаана"},
+  {t:"Эргэлтийн усны насосыг явуулж конденсаторт ус өгнө"},
+  {tag:"S54", t:"Конденсаторын уурын орчноос уур-агаарын холимог сорох хаалтыг нээж явуулах эжекторыг ажилд авна", set:{ej:1,vac:18}},
+  {tag:"S80·S81", t:"Эргэлтийн ус конденсатор руу орох 2 хаалтыг 1/3 хэмжээнд нээнэ", note:"0–50–75–100 %; усан камерын агаар гаргагчийг агааргүй ус гартал нээнэ"},
+  {tag:"S45·S44·S36·S26.1·S26.2", t:"КЭН-ий схемийн хаалтууд хаалттай эсэхийг шалгана", note:"100–0 %"},
+  {tag:"S37·S27", t:"Рециркуляцийн болон НДХ-ийн тойруу шугамын хаалтууд нээлттэй эсэхийг шалгана", note:"0–100 %"},
+  {tag:"КЭН-5а", t:"Хувирсан усны насос 1-ийг ажилд залгаж хэвийн ажиллагааг шалгаад зогсооно"},
+  {tag:"КЭН-5б", t:"Хувирсан усны насос 2-ыг явуулж хэвийн ажиллагааг шалгана", danger:"Насосыг усгүй явуулах, мөн шахах талын хаалт хаалттайгаар 2 мин-аас удаан явуулахыг хориглоно."},
+  {t:"КЭН-ий АВР-ыг шалгаж нэгийг ажилд («ОСН»), нөгөөг нөөцөд («РЕЗ») үлдээнэ", note:"Шахах талын цахилгаан хаалт нь насос АВР-аар залгагдахаас 5 сек өмнө нээгдэж эхэлнэ"},
+  {tag:"S30", t:"Нягтруулгын эжекторын хөргөгчөөр хувирсан ус явж байгааг шалгаад уур өгнө"},
+  {tag:"S70·S39·S43·S48", t:"Нягтруулгын уурын регуляторыг автомат удирдлагад шилжүүлэн ажилд залгана", note:"Камерт илүүдэл даралт 3–10 кПа; эжекторын сийрэгжилт 0,02–0,03 кгс/см²", set:{vac:26}},
+  {tag:"S31", t:"Үндсэн эжекторын 2-р үед уур өгч ажилд авна", set:{vac:30}, danger:"Эжекторуудад уур өгсөнөөс голд эргэлт өгөх хүртэл 30 мин-с ихгүй байх ёстой."},
+  {t:"Вакуум 33 кПа (абс. 60 кПа) болоход үндсэн эжекторын 1-р үед уур өгнө", set:{vac:52}},
+  {tag:"S54·S32", t:"Вакуум 71 кПа болоход явуулах эжекторыг зогсооно", note:"Эхлээд S54, дараа нь S32-ыг хаана", set:{vac:72,ej:1}},
+  {t:"Вакуум 45 кПа-аас их болсныг баталгаажуулж турбинд эргэлт өгөхийг зөвшөөрнө", set:{vac:74}}
+ ]
+},
+{
+ n:"Ү5 · ГПЗ-ээс турбины уурын хайрцаг хүртэл халаах",
+ note:"Дараалал 2.2. Конденсацийн төхөөрөмж явуулахтай хамтатгана. Хүйтэн байдлаас 280–300 °C хүртэл халаана.",
+ steps:[
+  {tag:"S75·S76·∇5·S49·S51·∇8", t:"ГПЗ-ийн дараах, зогсоох хавхлагийн, салаа шугамын болон уурын хайрцгийн өмнөх дренажуудыг нээнэ", note:"0–100 % тус тус"},
+  {t:"Салаа шугамыг халаах автомат алгоритмыг залгана", note:"«ПАР» – «ПРОГРЕВ» – «ВКЛЮЧИТЬ»"},
+  {t:"Тохируулах клапан (бүлэг клапан)-г гараар хаах сэлгүүрээр хаана", note:"Релений тагийг авч сэлгүүрийг доош суулгана, 100–0 %"},
+  {t:"Зогсоох хавхлагийн штокны нягтруулгаас нэвчсэн уурыг нягтруулгын системд өгөх вентилүүдийг нээж, атмосферт хаяхыг хаана"},
+  {t:"Зогсоох хавхлагуудын өмнө даралт байхгүйг шалгаад тэдгээрийг бүрэн нээнэ", set:{sk:1}},
+  {t:"ГЭБ хэвийн ажиллаж, бүлэг клапан бүрэн хаалттай байгааг шалгана"},
+  {tag:"S71–S74", t:"Турбины их биеийн бүх дренажуудыг нээнэ"},
+  {tag:"S102·S103", t:"ГПЗ-ийн тойруу шугамаар бүлэг клапан хүртэл уур өгч 0.3–0.5 МПа даралтад 15–20 мин халаана", set:{steamT:200}},
+  {t:"Уурын даралтыг аажмаар хэвийн хэмжээнд хүргэж шугамыг 280–300 °C хүртэл халаана", note:"Халах хурд 5 °C/мин-с ихгүй", set:{steamT:290,bk:0}},
+  {tag:"∇8", t:"Шугам хангалттай халсны дараа уурын хайрцгийн өмнөх дренажийг хааж, зогсоох хавхлагуудыг гар дээрээс аажмаар хаана", set:{sk:0}},
+  {tag:"S101", t:"Уурын ерөнхий хаалтыг бүрэн нээж, дараа нь тойруу хаалтуудыг хаана", set:{gpz:1}},
+  {t:"Штокны нэвчилтийг атмосферт хаях вентилүүдийг нээж, нягтруулгад өгөхийг хаана"},
+  {t:"Турбины өмнөх даралт 0 болоход ГЭБ-ийг зогсоож, бүлэг клапанг релений тусламжтайгаар буцааж нээнэ", set:{bk:1}}
+ ]
+},
+{
+ n:"Ү6 · Турбинд эргэлт өгөх",
+ note:"Ашиглалтын заавар 2.8. Явуулах график: хүйтэн байдлаас нийт 60 мин, халуунаас 15–42 мин.",
+ steps:[
+  {t:"Явуулахын өмнөх шалгалт: тосны халуун 30–45 °C, тосны даралт хэвийн, вакуум ≥45 кПа, хурц уурын t 280–300 °C", danger:"Тосны халуун 30 °C-аас бага үед турбиныг явуулахыг хориглоно."},
+  {tag:"ГЭБ", t:"Гол эргүүлэх байгууламж зогссоныг шалгана (шток дээд байрлалд)"},
+  {t:"Зогсоох хавхлагуудын аль уурын температур багатайг нь аажмаар нээж гол эргэж эхлэхийг хүлээнэ", set:{rpm:350,turb:1}, note:"Нээсэн байдлаа өөрчлөхгүйгээр 300–400 эрг/мин болоход хаана"},
+  {t:"Чагнуураар турбиныг бүхэлд нь чагнаж шүргэлт, хавирал байхгүйг нягтлана", danger:"Хэвийн бус дуу чимээ гарвал шалтгааныг илрүүлж устгах хүртэл эргэлт өгөхийг зогсооно."},
+  {t:"Зогсоох хавхлагыг дахин нээж 600 эрг/мин болгоод 10 мин халаана", set:{rpm:600,exp:0.4,steamT:300}},
+  {t:"1000 эрг/мин хүртэл 60 эрг/мин хурдаар нэмж 12 мин халаана", set:{rpm:1000,exp:0.8}},
+  {t:"Тосны халууныг 42–43 °C-д тохируулж, 3 дахь тос хөргөгчийг бэлтгэлд үлдээнэ", set:{oilT:43}},
+  {t:"1850 эрг/мин хүртэл 10 мин-д нэмж критик эргэлтүүдийг дайран өнгөрнө", note:"1312 ба 1718 эрг/мин — 450–500 эрг/мин хурдаар хурдан дайрна", set:{rpm:1850,exp:1.4}},
+  {tag:"S49·S51", t:"Критик эргэлтийг өнгөрсний дараа салаа шугамын дренажийг хаана"},
+  {t:"2800–2850 эрг/мин хүртэл 13 мин-д нэмнэ; тосны ерөнхий насос 0,82 МПа өгөхөд НП автоматаар зогсоно", set:{rpm:2850,exp:1.8,oilP:80}},
+  {t:"Тохируулгын систем эргэлтийг барьж эхэлсний дараа зогсоох хавхлагуудыг аажмаар бүрэн нээнэ", set:{sk:1}},
+  {t:"Синхронизатороор эргэлтийн давтамжийг 3000 эрг/мин болгоно", set:{rpm:3000,vac:85,exp:2.0}},
+  {t:"Хэвийн эргэлтийн үеийн шалгалт: доргио, репер, холхивчийн халуун, вакуум", note:"Доргио ≤25 мкм (босоо/хөндлөн), ≤40 мкм (голын дагуу); репер ≤8.5 мм; холхивчийн t ≤65 °C; вакуум дахь абс. даралт ≤8 кПа"},
+  {t:"Синхронизаторын барих диапазоныг шалгана", note:"Дээд байрлал 2850 эрг/мин · доод байрлал 3150 эрг/мин"},
+  {t:"АХА-г гидравлик туршилтаар шалгана", note:"Автомат таслуурыг «ИСПЫТАНИЕ» байрлалд тавьж түлхэгч кнопыг дарна — зогсоох хавхлагууд хаагдахгүй"},
+  {t:"АХА-г эргэлт нэмэх замаар 3360 эрг/мин дээр шалгаж 2 удаа туршина", danger:"Синхронизаторын шпинделийн хязгаарлагчгүйгээр турбиныг явуулахыг хориглоно."},
+  {t:"Цахилгаан ачаалал хаях релений ажиллагааг шалгана", note:"Ажиллахад эргэлт 2800–2850 эрг/мин болж буурах ба зогсоох хавхлагууд нээлттэй хэвээр үлдэнэ"}
+ ]
+},
+{
+ n:"Ү7 · Турбиныг сүлжээнд залгаж ачааллах",
+ note:"Ачаалал авах хурд 0.5 МВт/мин-с ихгүй. Үндсэн халалт хэвийн ачааллын 50 %-д явагдана.",
+ steps:[
+  {t:"Генераторт өдөөлт өгч хүчдэлийг тохируулна"},
+  {t:"Эргэлтийн давтамжийг сүлжээний давтамжтай тохируулж (синхронизаци) генераторыг сүлжээнд залгана", set:{gen:1,load:0.5}},
+  {t:"Синхронизатороор 2.0 МВт ачаалал авч 10 мин барина", set:{load:2}},
+  {t:"0,5 МВт/мин-с ихгүй хурдаар 10.5 МВт хүртэл ачаалал авч 20 мин халаана", set:{load:10.5}},
+  {t:"НДХ-ийг залгана: конденсат юүлэх насос, түвшний регулятор, үндсэн конденсатын хаалтууд", note:"Тойруу хаалтыг хаана"},
+  {tag:"S29·S43·S40", t:"Турбинээс НДХ-д уур өгөх хаалтыг аажим нээж шугамыг 5 °C/мин хурдаар 5 мин халаагаад бүрэн нээнэ"},
+  {tag:"S22·S23·S60·S61", t:"ӨДХ-уудын түвшний регуляторыг автоматад залгаж, тэжээлийн усаар дүүргэнэ"},
+  {tag:"S62", t:"Тэжээлийн усны ерөнхий тойруу шугамын хаалтыг хаана"},
+  {tag:"S28", t:"Турбинээс ӨДХ-д уур өгөх хаалтыг аажим нээж 15–20 мин-д ажлын даралт гаргана", note:"Халаах хурд 5 °C/мин", set:{load:12}},
+  {t:"19.5 МВт ачаалал дээр 15 мин халаана", set:{load:19.5}},
+  {t:"Отборын захлопкийн нягт байдлыг 300–600 кВт ачааллын үед шалгасан байна", danger:"Захлопка нь нягт бус хааж байгаа отборыг дулааны сүлжээнд залгахыг хориглоно."},
+  {tag:"S24·S25", t:"Үйлдвэрийн, дараа нь дулааны отборыг залгана", note:"Ачаалал 10.5 МВт-аас багад отбор залгахыг хориглоно", set:{load:24}},
+  {t:"Цахилгаан ачааллыг графикийн дагуу хэвийн утгад хүргэнэ", set:{load:35,exp:2.1,steamP:34.7}}
+ ]
+}
+];
+
+/* ============ ЗОГСООХ ДАРААЛАЛ ============ */
+const P_RUN = {rpm:3000,load:35,steamP:34.7,steamT:435,vac:85,oilP:75,oilT:43,exp:2.1,
+               n3p5:1,gpz:1,sk:1,bk:1,turb:1,cond:1,ej:1,gen:1};
+const STOP = [
+{
+ n:"З1 · Бэлтгэл ба ачаалал хасах",
+ note:"Аваарийн бус зогсоолт. Цехийн дарга буюу ээлжийн инженерийн шийдвэрээр гүйцэтгэнэ.",
+ steps:[
+  {tag:"НП·НС·НА", t:"Тосны явуулах, зогсоох, аваарийн цахилгаан насосуудыг явуулж үзнэ"},
+  {t:"Зуухан цехэд ачаалал хасах гэж байгааг мэдэгдэнэ"},
+  {t:"Синхронизатороор цахилгаан ачааллыг 10,5 МВт (хэвийн чадлын 30 %) болтол хасна", set:{load:10.5}, note:"Ажлын даалгаварт энэ утгыг 15 МВт гэж заасан — эх баримтуудын зөрүү"}
+ ]
+},
+{
+ n:"З2 · Тохируулгатай отборуудыг таслах",
+ note:"Отборуудыг ээлжлэн тасална. Деаэраторыг өөр эх үүсвэрт шилжүүлсэн байх ёстой.",
+ steps:[
+  {tag:"S55", t:"Деаэраторт өөр эх үүсвэрээс уур өгсний дараа дулааны отбороос деаэраторт уур өгөх хаалтыг хаана"},
+  {t:"Отборын даралтын регуляторын маховикийг «МЕНЬШЕ» чиглэлд эргүүлж дээд байрлалд тохируулна"},
+  {t:"Отборын захлопка хаагдсаныг, мөн цахилгаан ачаалал өөрчлөгдөөгүйг шалгана"},
+  {tag:"S24·S25", t:"Отборуудын цахилгаан хаалтыг хааж камерийн даралт зөвшөөрөгдөх хэмжээнд байгааг шалгана"},
+  {t:"Регуляторын мэдрэгчид уур өгөх вентилүүдийг хаана"},
+  {t:"Бүх отборын шугамын захлопка болон цахилгаан хаалт бүрэн хаагдсаныг шалгана"}
+ ]
+},
+{
+ n:"З3 · Сэргээн халаалтын системийг таслах",
+ note:"ӨДХ ба НДХ-ийг таслах автомат блокировк ажиллана. Ажиллахгүй бол оператор дарааллаар тасална.",
+ steps:[
+  {t:"ӨДХ-уудыг таслах үйлдлийн автомат блокировк ажиллаж байгааг шалгана"},
+  {tag:"S28", t:"ӨДХ-уудад уур өгөх цахилгаан хаалтыг болон отсосын вентилийг хаана"},
+  {tag:"S62·S60·S61", t:"Тэжээлийн усны тойруу хаалтыг нээж, ӨДХ руу орох, гарах хаалтуудыг хаана", note:"Нэвтрүүлэх ба буцаахгүй клапангуудыг маховикээр бүрэн хаана"},
+  {tag:"S22·S23", t:"ӨДХ-уудын түвшний регуляторуудыг унтрааж хамгаалалтын хэлхээг хүчдэлээр тасална"},
+  {t:"НДХ-ийг таслах үйлдлийн автомат блокировк ажиллаж байгааг шалгана"},
+  {tag:"S39·S43", t:"Нягтруулгаас дренажийн тэлэгчид уур өгөх хаалтыг ¼ нээж, НДХ-д уур өгөх хаалтыг бүрэн хаана", note:"Уг шугамын хөргөлтийн усыг урьдчилан өгсөн байна (S41)"},
+  {tag:"S29", t:"Турбины отбороос НДХ-д уур өгөх хаалтыг болон отсосын вентилийг хаана"},
+  {tag:"S20·S21·S36", t:"НДХ-ийн түвшний регуляторуудыг унтрааж, конденсат юүлэх насосны хаалтуудыг хаана"}
+ ]
+},
+{
+ n:"З4 · Турбиныг хурц уураар таслах",
+ note:"Ачаалал 10,5 МВт-аас багасахад захлопкуудын алсын унтраалга автоматаар ажиллана.",
+ steps:[
+  {t:"Цахилгаан ачааллыг үргэлжлүүлэн хасна; 10,5 МВт-аас багад захлопкуудын алсын унтраалга ажиллаж, дохиолол ирж байгааг шалгана", set:{load:6}},
+  {t:"Ачаалал хасах явцад сервомотор болон тохируулах клапангуудын штокнууд гацаагүй жигд хөдөлж байгааг ажиглана", note:"Сервомотор гацвал ерөнхий щитэнд мэдэгдэж, ачааллыг зогсоох хавхлага буюу ГПЗ-ээр хасна"},
+  {t:"Генераторыг сүлжээнээс тасална", set:{gen:0,load:0}},
+  {t:"АХА-н ажиллагааг эргэлт нэмэх замаар шалгах, тохируулах клапангуудын нягтыг шалгахад тохиромжтой үе"},
+  {t:"Автомат таслуурын кнопыг дарж турбиныг хурц уураар тасална", set:{sk:0,bk:0,rpm:2400}},
+  {t:"Зогсоох хавхлагууд болон уурын ерөнхий хаалт хаагдсаныг шалгана", set:{gpz:0}},
+  {tag:"ВД1", t:"Зогсоох хавхлагуудыг гар дээрээс бүрэн хааж, 5 сек хүлээгээд ВД1-г тасална"},
+  {t:"Тосны ерөнхий насосны шахах даралт 0,72 МПа-аас багасахад НП автоматаар залгагдахыг шалгана", note:"Залгагдахгүй бол 0,68 МПа дээр оператор удирдах компьютероос явуулна", set:{oilP:75}},
+  {tag:"S31", t:"Үндсэн эжекторын уурыг 50 % багасгаж, эргэлт 480–540 эрг/мин болоход бүрэн хаана", set:{rpm:500,vac:60}}
+ ]
+},
+{
+ n:"З5 · Вакуум таслах, хөргөлт ба гол эргүүлэх",
+ note:"Гол зогссоноос хойш ГЭБ-ийн горим болон НП-ийн ажиллах хугацааг чанд баримтална.",
+ steps:[
+  {tag:"S48·S30", t:"Конденсаторын абс. даралт 95 кПа болоход нягтруулгын регулятор ба эжекторын уурын хаалтуудыг хаана", set:{vac:6}},
+  {tag:"S39·S41", t:"Нягтруулгын уурын регуляторыг унтрааж, дренажийн тэлэгчид уур өгөх хаалт болон хөргөлтийг тасална"},
+  {t:"Вакуум унаж 60 кПа болоход дохиолол, 40 кПа болоход турбины хамгаалалт ажиллаж байгааг шалгана", set:{vac:0,ej:0}},
+  {t:"Нягтруулгын эжекторыг уураар тасалснаас 10 мин-н дараа КЭН-ийг зогсоож шахах талын хаалтуудыг хаана", set:{cond:0}},
+  {tag:"S12", t:"Конденсаторын түвшний регуляторыг унтрааж, НДХ-д конденсат өгөх хаалтыг хаана"},
+  {tag:"S65–S69·S71–S74", t:"Бүлэг дренаж болон турбины их биеийн дренажуудыг нээнэ", note:"0–100 %"},
+  {t:"Хурц уурын шугамын агаар гаргагч, салаа шугамын бронк руу юүлэгч, зогсоох хавхлагийн уур гаргагч, отборын дренажуудыг нээнэ"},
+  {t:"Шуурхай ажиллагааны журналд голын зогссон хугацааг тэмдэглэж, сул эргэлтийн хугацааг тодорхойлно", set:{rpm:0,turb:0}},
+  {tag:"ГЭБ", t:"Гол зогссоны дараа ГЭБ-ийг тасралтгүй горимоор 3 цаг, дараа нь 10 мин тутам 180°-аар 4 цаг эргүүлнэ", note:"Цааш: 6 цагт явуулах бол 0,5 цаг тутам · 24 цагт бол 1,0 цаг тутам · удаан зогсоох бол 2,0 цаг тутам 30 цагийн турш"},
+  {tag:"НП", t:"Тосны явуулах насосыг зогссоноос хойш 10–12 цаг явуулж, дараа нь НС-ээр холхивчийг тосоор хангана", note:"Тосны халууныг 30–45 °C-д барина", set:{oilP:60,oilT:35}},
+  {tag:"S85·S84", t:"НП-ийг зогсоосны дараа тос хөргөгч болон генераторын хөргөлтийн усыг тасална"},
+  {tag:"S80·S81", t:"Эргэлтийн ус конденсатор руу орох хаалтуудыг хааж, эргэлтийн усны насосыг зогсооно"},
+  {t:"Удирдах компьютер болон «ИТ-14»-ийн хүчдэлийг тасална", set:{oilP:0,oilT:30,steamP:0,steamT:60,n3p5:0}}
+ ]
+}
+];
+</script>
+<script>
+/* ============ ДАСГАЛ 1 · Хаалт таних ============ */
+const D_VALVE = [
+ ["S101","Уурын ерөнхий хаалт (ГПЗ)",["Зогсоох хавхлага","Бүлэг клапан","Явуулах эжекторын хаалт"]],
+ ["S32","Явуулах эжекторт уур өгөх хаалт",["Үндсэн эжекторын хаалт","Нягтруулгын эжекторын хаалт","Уур-агаарын холимог сорох хаалт"]],
+ ["S54","Уур-агаарын холимог сорох шугамын хаалт",["Эргэлтийн усны гарах хаалт","Конденсаторын тогоо дүүргэх","Рециркуляцийн хаалт"]],
+ ["S77","Конденсаторын тогоо дүүргэх хаалт",["ӨДХ-д уур өгөх","Тэжээлийн усны тойруу","Бүлэг дренаж"]],
+ ["S80, S81","Эргэлтийн ус конденсатор руу орох хаалт",["Эргэлтийн ус конденсатораас гарах","Тос хөргөгчийн усны орох","Генераторын хөргөлт"]],
+ ["S28","ӨДХ-д уур өгөх цахилгаан хаалт",["НДХ-д уур өгөх","Дулааны отбор деаэраторт","Нягтруулгад уур өгөх"]],
+ ["S62","Тэжээлийн усны ӨДХ-ийг тойрох шугамын хаалт",["ӨДХ руу орох тэжээлийн ус","ӨДХ-ээс гарах тэжээлийн ус","Хувирсан усны рециркуляци"]],
+ ["S48","Нягтруулгын уурын регуляторын өмнөх хаалт",["Нягтруулгын регуляторын тойруу","Нягтруулгын эжекторын хаалт","НДХ-д уур өгөх"]],
+ ["S71–S74","Турбины их биеийн дренаж",["Бүлэг дренаж","Салаа шугамын дренаж","ГПЗ-ийн дараах дренаж"]],
+ ["ВД1","Зогсоох хавхлагуудын түргэн таслах төхөөрөмж",["Автомат хэт эргэлтийн хамгаалалт","Гол эргүүлэх байгууламж","Захлопкуудын реле"]],
+ ["S60, S61","Тэжээлийн ус ӨДХ руу орох, гарах хаалт",["Хувирсан ус НДХ руу орох, гарах","Эргэлтийн усны хаалтууд","Отборын цахилгаан хаалт"]],
+ ["S12","Конденсаторын тогооны түвшний регулятор",["НДХ-ийн түвшний регулятор","ӨДХ-ийн түвшний регулятор","Нягтруулгын уурын регулятор"]]
+];
+
+/* ============ ДАСГАЛ 2 · Дараалал угсрах ============ */
+const D_ORDER = [
+ {t:"Конденсацийн төхөөрөмжийг явуулах дараалал",
+  items:["Конденсаторын тогоог хувирсан усаар 2/3 хүртэл дүүргэх",
+         "Бүх уурын цахилгаан хаалтууд хаалттай эсэхийг шалгах",
+         "Явуулах эжекторт уур өгөх хаалтыг (S32) нээж халаах",
+         "Эргэлтийн усны гарах хаалтуудыг (S82, S83) нээх",
+         "Эргэлтийн усны насосыг явуулж S54-ээр явуулах эжекторыг ажилд авах",
+         "КЭН-ийг явуулж АВР-ыг шалгах",
+         "Нягтруулгын уурын регуляторыг автомат горимд залгах",
+         "Үндсэн эжекторын 2-р үед уур өгөх",
+         "Вакуум 71 кПа болоход явуулах эжекторыг зогсоох"]},
+ {t:"Турбинд эргэлт өгөх дараалал",
+  items:["ГЭБ зогссон, штокны байрлалыг шалгах",
+         "Зогсоох хавхлагыг аажим нээж 300–400 эрг/мин болоход хаах",
+         "Турбиныг чагнуураар чагнаж шүргэлт шалгах",
+         "600 эрг/мин дээр 10 мин халаах",
+         "1000 эрг/мин дээр 12 мин халаах",
+         "Критик эргэлтүүдийг дайран 1850 эрг/мин хүргэх",
+         "2850 эрг/мин — тохируулгын систем ажиллагаанд орох",
+         "Зогсоох хавхлагуудыг бүрэн нээх",
+         "Синхронизатороор 3000 эрг/мин болгох"]},
+ {t:"Турбиныг зогсоох дараалал",
+  items:["Тосны насосуудыг явуулж үзэх",
+         "Зуухан цехэд ачаалал хасахаа мэдэгдэх",
+         "Ачааллыг 10.5 МВт болтол хасах",
+         "Тохируулгатай отборуудыг таслах",
+         "ӨДХ ба НДХ-ийг таслах",
+         "Генераторыг сүлжээнээс таслах",
+         "Автомат таслуураар турбиныг хурц уураар таслах",
+         "Эргэлт 480–540 эрг/мин болоход үндсэн эжекторыг хаах",
+         "Вакуумыг тасалж ГЭБ-ийг тасралтгүй горимд залгах"]}
+];
+
+/* ============ ДАСГАЛ 3 · Хязгаарын утга ============ */
+const D_NUM = [
+ {q:"Уурын шугамыг халаах дээд хурд",u:"°C/мин",a:5,tol:0,
+  e:"Уурын ерөнхий болон салаа шугамыг 5 °C/мин-с ихгүй хурдаар халаана."},
+ {q:"Турбинд эргэлт өгөхийг зөвшөөрөх доод вакуум",u:"кПа",a:45,tol:0,
+  e:"Вакуум 45 кПа (≈350 мм м.у.б, абс. даралт 48 кПа)-аас их болоход эргэлт өгнө."},
+ {q:"Явуулах эжекторыг зогсоох вакуум",u:"кПа",a:71,tol:0,
+  e:"Вакуум 71 кПа (≈530 мм м.у.б) болоход эхлээд S54, дараа нь S32-ыг хаана."},
+ {q:"Холхивчийн өмнөх тосны доод даралт (ажлын)",u:"кПа",a:50,tol:0,
+  e:"Тосны халуун 40–45 °C байхад холхивчийн өмнөх даралт 50–100 кПа байна."},
+ {q:"Тосны зогсоох насос автоматаар залгагдах даралт",u:"кПа",a:25,tol:0,
+  e:"30 кПа-д анхааруулах дохио, 25 кПа-д НС автоматаар залгагдана."},
+ {q:"Турбиныг явуулахыг хориглох тосны доод температур",u:"°C",a:30,tol:0,
+  e:"Тос хөргөгчийн дараах тосны халуун 30 °C-аас бага үед явуулахыг хориглоно."},
+ {q:"Роторын нэгдүгээр критик эргэлт",u:"эрг/мин",a:1312,tol:0,
+  e:"Критик эргэлтүүд 1312 ба 1718 эрг/мин. Тэдгээрийг 450–500 эрг/мин хурдаар дайрна."},
+ {q:"АХА-ийн ажиллах тавил",u:"эрг/мин",a:3360,tol:0,
+  e:"АХА нь 56 с⁻¹ = 3360 эрг/мин дээр ажиллана (хэвийн эргэлтийн 112 %)."},
+ {q:"Отбор залгахыг зөвшөөрөх доод цахилгаан ачаалал",u:"МВт",a:10.5,tol:0,
+  e:"Хэвийн чадлын 30 % буюу 10,5 МВт-аас бага ачаалалтай үед отбор залгахыг хориглоно."},
+ {q:"Голын харьцангуй дулаан тэлэлтийн дээд хязгаар",u:"мм",a:2.5,tol:0,
+  e:"+2,5 мм-с хэтрэх ёсгүй, +2,0 мм-д дохиолол дугарна."},
+ {q:"Тохируулгын үе орчмын их биеийн дээд-доод t зөрүүний дээд хязгаар",u:"°C",a:30,tol:0,
+  e:"Явуулах үед 30 °C-с ихгүй; 50 °C-с их бол турбин ажиллах хориотой."},
+ {q:"Ачаалал авах дээд хурд",u:"МВт/мин",a:0.5,tol:0,
+  e:"Ачаалал авах хурд 0,5 МВт/мин-с ихгүй; хяналтын горимд 0,4 МВт/мин."},
+ {q:"Холхивчийн доргионы дээд хязгаар (босоо/хөндлөн)",u:"мкм",a:25,tol:0,
+  e:"Босоо ба хөндлөн чиглэлд 2,8 мм/с = 25 мкм; голын дагуу 4,5 мм/с = 40 мкм."},
+ {q:"Турбины их биеийн дулаан тэлэлт (репер)-ийн дээд утга",u:"мм",a:8.5,tol:0,
+  e:"Зүүт хэмжүүр (репер)-ийн заалт 8,5 мм-с ихгүй байна."},
+ {q:"Гол зогссоны дараа ГЭБ тасралтгүй эргүүлэх хугацаа",u:"цаг",a:3,tol:0,
+  e:"3 цаг тасралтгүй, дараа нь 10 мин тутам 180°-аар 4 цаг эргүүлнэ."},
+ {q:"Турбин зогссоны дараа НП ажиллах хугацаа (доод)",u:"цаг",a:10,tol:0,
+  e:"Тосны явуулах насосыг 10–12 цаг явуулна."}
+];
+
+/* ============ ДАСГАЛ 4 · Явуулах график ============ */
+const D_GRAPH = [
+ {q:"Хүйтэн байдлаас (зогссоноос хойш 72 цагаас их) явуулахад голыг эргүүлж 3000 эрг/мин хүргэх нийт хугацаа",
+  o:["60 мин","42 мин","20 мин","15 мин"],a:0,
+  e:"Хүйтэн байдлаас явуулах нийт хугацаа 60 мин. Бүрэн хөрөөгүй байдлаас 42 мин, халуунаас 20 мин, хэт халуунаас 15 мин."},
+ {q:"Бүрэн хөрөөгүй байдал гэдэг нь зогссоноос хойш хэдэн цаг өнгөрсөн үе вэ?",
+  o:["1 цаг дотор","10–72 цаг","72 цагаас их","24–48 цаг"],a:1,
+  e:"10–72 цаг өнгөрсөн, их биеийн доод хэсгийн t = 171–209 °C."},
+ {q:"Хүйтэн байдлаас явуулахад 600 эрг/мин хүртэл эргэлт нэмэх хурд",
+  o:["50 эрг/мин","200 эрг/мин","300 эрг/мин","450 эрг/мин"],a:1,
+  e:"Хүйтэн байдлаас 200 эрг/мин хурдаар 3 мин-д, бүрэн хөрөөгүй байдлаас 300 эрг/мин хурдаар 2 мин-д."},
+ {q:"1000 эрг/мин дээр хүйтэн байдлаас халаах хугацаа",
+  o:["6 мин","8 мин","12 мин","20 мин"],a:2,
+  e:"Хүйтэн байдлаас 12 мин, бүрэн хөрөөгүй байдлаас 8 мин халаана."},
+ {q:"Хүйтэн байдлаас явуулах үед хурц уурын шугамыг хэдэн °C хүртэл халаах вэ?",
+  o:["200–220 °C","250–270 °C","280–300 °C","380–400 °C"],a:2,
+  e:"Хүйтэн байдлаас 280–300 °C; халуун байдлаас турбины хамгийн халуун хэсгийн халуунаас 50 °C-аас багагүй илүү болтол халаана."},
+ {q:"Турбины үндсэн халалт ямар ачаалал дээр явагддаг вэ?",
+  o:["хэвийн ачааллын 30 %","хэвийн ачааллын 50 %","хэвийн ачааллын 70 %","бүрэн ачаалал дээр"],a:1,
+  e:"Хэвийн ачааллын 50 %-д үндсэн халалт явагддаг тул 19,5 МВт дээр 15 мин, отбортой үед 17,5 МВт дээр 20 мин халаана."}
+];
+
+/* ============ АВААРЬ ЭСЭРГҮҮЦЭХ СЦЕНАРИ ============ */
+const EMERG = [
+{
+ t:"Вакуум огцом унаж байна",
+ s:"Турбин 28 МВт ачаалалтай ажиллаж байхад конденсаторын вакуум 85 кПа-аас 62 кПа хүртэл 4 минутын дотор унаж, удирдах компьютерт дохиолол ирлээ. Сүүлийн үеийн халуун 78 °C болж өсөж байна.",
+ o:[
+  {t:"Эжекторуудын ажиллагаа, уур-агаарын шугамын нягт, эргэлтийн усны зарцуулалтыг шалгаж, шалтгааныг устгах хүртэл ачааллыг хасах",ok:true,
+   e:"Зөв. Вакуум унах нь эжекторын уурын параметр, вакуум системийн нэвчилт, эргэлтийн усны хомсдол зэргээс үүсдэг. Ачааллыг хасч сүүлийн үеийг хамгаална. Вакуум цааш унаж абс. даралт 60 кПа болбол дохиолол, 40 кПа болбол хамгаалалт ажиллана."},
+  {t:"Ачааллыг нэмж вакуумыг сэргээхийг оролдох",ok:false,
+   e:"Буруу. Ачаалал нэмэх нь сүүлийн үе рүү орох уурын зарцуулалтыг ихэсгэж халалтыг улам нэмэгдүүлнэ."},
+  {t:"Турбины хамгаалалт ажиллахыг хүлээх",ok:false,
+   e:"Буруу. Хамгаалалт бол эцсийн хамгаалалтын шат. Оператор шалтгааныг илрүүлж урьдчилан арга хэмжээ авах үүрэгтэй."},
+  {t:"Нягтруулгын уурын регуляторыг гар удирдлагад шилжүүлж камерийн даралтыг ихэсгэх",ok:false,
+   e:"Хэсэгчлэн боломжтой ч эхний үйлдэл биш. Эхлээд эжектор ба эргэлтийн усыг шалгана."}
+ ]
+},
+{
+ t:"Холхивчийн өмнөх тосны даралт унасан",
+ s:"Тосны ерөнхий насосны шахах даралт унаж, холхивчийн өмнөх тосны даралт 30 кПа хүртэл буурч анхааруулах дохио ирлээ. Турбин хэвийн ачаалалтай ажиллаж байна.",
+ o:[
+  {t:"Тосны зогсоох болон аваарийн насос АВР-аар залгагдахыг хянаж, залгагдаагүй бол гараар явуулж, ачааллыг хасч турбиныг зогсоох бэлтгэл хийх",ok:true,
+   e:"Зөв. 25 кПа-д НС автоматаар залгагдах ёстой. Тосны даралт үргэлжлэн унавал тосолгооны гидравлик реле ажиллаж зогсоох хавхлагууд хаагдана. Холхивч тосгүй эргэх нь ротор гэмтэх шууд эрсдэл."},
+  {t:"Тос хөргөгчийн хөргөлтийн усыг нэмэгдүүлж тосны халууныг бууруулах",ok:false,
+   e:"Буруу. Асуудал нь даралт унасан, температур биш. Хөргөлт нэмэх нь тосны зууралдалтыг ихэсгэж даралтыг улам бууруулж мэднэ."},
+  {t:"Дохиоллыг арилгаж ажиглалт үргэлжлүүлэх",ok:false,
+   e:"Буруу. 30 кПа бол хамгаалалт ажиллах босгонд маш ойрхон. Идэвхтэй арга хэмжээ шаардлагатай."},
+  {t:"Гол эргүүлэх байгууламжийг залгах",ok:false,
+   e:"Буруу. Турбин эргэлтэд байхад ГЭБ-ийг залгахгүй; тосны даралт 25 кПа-аас багасахад ГЭБ автоматаар зогсоно."}
+ ]
+},
+{
+ t:"Ачаалал бүрэн хаягдсан — хэт эргэлт",
+ s:"Генератор сүлжээнээс салж цахилгаан ачаалал бүрэн хаягдав. Эргэлтийн давтамж 3000 → 3280 эрг/мин болж өсөөд тогтворжлоо.",
+ o:[
+  {t:"Тохируулгын систем эргэлтийг барьж байгааг хянаж, АХА ажиллаагүй тул уурын ерөнхий хаалтаар хязгаарлаж, турбиныг сул эргэлтэд байлгах",ok:true,
+   e:"Зөв. Туршилтын шалгуур: эргэлт 3300 эрг/мин-с бага дээр тогтвол тохируулгын систем хэвийн. 3300-аас ихэсвэл хамгаалалт буюу автомат таслуураар турбиныг зогсооно. АХА-ийн тавил 3360 эрг/мин."},
+  {t:"Шууд автомат таслуурын унтраах товчлуурыг дарж турбиныг зогсоох",ok:false,
+   e:"Хэрэггүй. Эргэлт 3300 эрг/мин-с бага дээр тогтворжсон тул тохируулгын систем үүргээ гүйцэтгэсэн байна."},
+  {t:"Синхронизатороор эргэлтийг 3000 эрг/мин болгож бууруулаад дахин сүлжээнд залгах",ok:false,
+   e:"Хэсэгчлэн зөв ч эхний үйлдэл биш. Эхлээд тохируулгын систем, АХА-ийн төлөв, тоноглолын байдлыг шалгана."},
+  {t:"Отборуудыг залгаж уурын зарцуулалтыг нэмэгдүүлэх",ok:false,
+   e:"Буруу. Ачаалалгүй турбинд отбор залгах нь зөвшөөрөгдөхгүй (30 %-аас бага ачаалал)."}
+ ]
+},
+{
+ t:"ӨДХ-ийн уурын орчинд усны түвшин өсөв",
+ s:"Өндөр даралтын халаагчийн усны түвшин өсөж анхааруулах дохиолол ирлээ. Хамгаалалт автоматаар ажиллаагүй байна.",
+ o:[
+  {t:"Оператор ӨДХ-ийг гараар тасална: S28-г хааж отсосын вентилийг хаах, нэвтрүүлэх ба буцаахгүй клапангуудыг ажиллуулж S62-г нээж S60, S61-ийг хаах",ok:true,
+   e:"Зөв. Түвшин өсөх нь халаагчийн хоолой цоорсныг илтгэнэ. Тэжээлийн усыг тойруу шугамаар (S62) явуулж ӨДХ-ийг усаар болон уураар тасална."},
+  {t:"Түвшний регуляторыг гар удирдлагад шилжүүлж юүлэлтийг нэмэгдүүлэх",ok:false,
+   e:"Хангалтгүй. Хоолой цоорсон бол юүлэлт нэмэх нь асуудлыг шийдэхгүй, ус турбин руу орох эрсдэл үлдэнэ."},
+  {t:"Турбиныг яаралтай зогсоох",ok:false,
+   e:"Хэт огцом. ӨДХ-ийг тасалснаар турбин үргэлжлэн ажиллах боломжтой; тэжээлийн ус тойруу шугамаар явна."},
+  {t:"Уурын отборын даралтыг бууруулж ажиглах",ok:false,
+   e:"Буруу. Усны түвшин өсөх нь турбин руу ус цохих эрсдэл үүсгэдэг тул саатуулж болохгүй."}
+ ]
+},
+{
+ t:"Голын харьцангуй дулаан тэлэлт хязгаарт ойртлоо",
+ s:"Турбиныг хүйтэн байдлаас явуулж байх үед 1850 эрг/мин дээр голын харьцангуй дулаан тэлэлт +2,0 мм болж дохиолол дугарлаа.",
+ o:[
+  {t:"Эргэлт нэмэхээ зогсоож, хурц уурын зарцуулалтыг тохируулан тэлэлтийг буулгах арга хэмжээ авах",ok:true,
+   e:"Зөв. +2,0 мм-д дохиолол, +2,5 мм-д зөвшөөрөгдөх хязгаар. Ямар нэг параметр хязгаарын утгад хүрвэл шалтгааныг илрүүлж хэвийн болтол эргэлт эсвэл ачаалал нэмэхгүй."},
+  {t:"Хамгаалалт ажиллах хүртэл эргэлтийг үргэлжлүүлэн нэмэх",ok:false,
+   e:"Буруу. Тэлэлт +2,5 мм-с хэтрэвэл турбин ажиллах хориотой — ротор ба статорын шүргэлт үүснэ."},
+  {t:"Сүүлийн үе рүү хөргөх конденсат цацаж тэлэлтийг бууруулах",ok:false,
+   e:"Буруу. Хөргөх конденсат нь сүүлийн үеийн халуун 80 °C-аас ихсэхэд цацдаг бөгөөд голын тэлэлтийг зохицуулдаггүй."},
+  {t:"Их биеийн дренажуудыг хааж халалтыг хурдасгах",ok:false,
+   e:"Буруу. Дренаж хаах нь их биеийн доод хэсэгт ус хуримтлагдаж дээд-доод t зөрүүг ихэсгэнэ."}
+ ]
+},
+{
+ t:"Сервомотор гацав",
+ s:"Турбиныг зогсоох явцад цахилгаан ачаалал хасахад сервомоторын шток гацаж, тохируулах клапангууд жигд хөдлөхгүй байна.",
+ o:[
+  {t:"Ерөнхий щитэнд мэдэгдээд цахилгаан ачааллыг зогсоох хавхлагуудаар эсвэл уурын ерөнхий хаалтаар хасах",ok:true,
+   e:"Зөв. Ашиглалтын зааврын санамжийн дагуу сервомотор гацаж гэмтлийг устгах боломжгүй бол ачааллыг зогсоох хавхлага буюу ГПЗ-ээр хасна."},
+  {t:"Синхронизаторыг «ПРИБАВИТЬ» чиглэлд эргүүлж штокыг чөлөөлөхийг оролдох",ok:false,
+   e:"Буруу. Ачаалал нэмэх чиглэлд үйлдэл хийх нь зогсоох горимд аюултай."},
+  {t:"Автомат таслуурыг шууд ажиллуулж турбиныг таслах",ok:false,
+   e:"Боломжтой ч эхний үйлдэл биш — ачаалалтай байхад огцом таслах нь хэт эргэлтийн эрсдэл үүсгэнэ."},
+  {t:"Тосны тохируулгын системийн даралтыг ихэсгэх",ok:false,
+   e:"Буруу. Тохируулгын системийн даралтыг дур мэдэн өөрчлөх нь бүх гүйцэтгэх төхөөрөмжийн ажиллагааг алдагдуулна."}
+ ]
+},
+{
+ t:"Хурц уурын температур огцом унав",
+ s:"Зуухнаас ирэх хурц уурын температур 435 °C-аас 380 °C хүртэл 3 минутын дотор унаж, «хурц уурын температур унах» хамгаалалтын дохиолол ирлээ.",
+ o:[
+  {t:"Зуухан цехтэй холбогдож параметрийг сэргээх арга хэмжээ авахуулан, ачааллыг хасч, турбины дулааны төлөвийн параметрүүдийг чанд хянах",ok:true,
+   e:"Зөв. Хурц уурын t унах нь чийглэг уур турбинд орох, их биеийн огцом хөрөлт, гол шилжилт үүсгэх эрсдэлтэй. Хамгаалалт нь 390 °C-аас их үед автоматаар залгагддаг."},
+  {t:"Бүлэг клапаныг бүрэн нээж уурын зарцуулалтыг нэмэгдүүлэх",ok:false,
+   e:"Буруу. Хүйтэн уурын зарцуулалтыг нэмэх нь их биеийн хөрөлтийг хурдасгана."},
+  {t:"Хамгаалалтыг салгаж ажиллагааг үргэлжлүүлэх",ok:false,
+   e:"Буруу бөгөөд хориотой. Хамгаалалтыг дур мэдэн салгахыг зөвшөөрөхгүй."},
+  {t:"Отборуудыг бүрэн нээж камерийн даралтыг бууруулах",ok:false,
+   e:"Буруу. Отборын горимыг өөрчлөх нь дулааны төлөвийг улам тогтворгүй болгоно."}
+ ]
+},
+{
+ t:"КЭН-ий АВР ажиллахгүй байна",
+ s:"Ажилд байгаа хувирсан усны насос 1 (КЭН-5а) зогсоход насос 2 (КЭН-5б) АВР-аар залгагдсангүй. Конденсаторын тогооны түвшин өсөж байна.",
+ o:[
+  {t:"КЭН-5б-ийг удирдах компьютероос гараар явуулж, шахах талын хаалтын нээгдэх дарааллыг шалгах",ok:true,
+   e:"Зөв. Шахах талын цахилгаан хаалт нь насос АВР-аар залгагдахаас 5 сек өмнө нээгдэж эхлэх ёстой. Энэ дараалал алдагдвал АВР ажиллахгүй."},
+  {t:"Рециркуляцийн шугамыг нээж түвшинг барих",ok:false,
+   e:"Хангалтгүй. Насосгүйгээр рециркуляци утгагүй — конденсат зайлуулагдахгүй."},
+  {t:"Конденсаторын тогоо руу нэмэлт ус өгөхөө зогсоох",ok:false,
+   e:"Буруу. Түвшин өсөх нь турбинаас ирэх конденсатаас болж байгаа тул нэмэлт усыг зогсоох нь шийдэл биш."},
+  {t:"Турбиныг яаралтай зогсоох",ok:false,
+   e:"Эхний үйлдэл биш. Эхлээд нөөц насосыг гараар явуулна; амжилтгүй бол зогсоох бэлтгэл рүү шилжинэ."}
+ ]
+}
+];
+
+/* ============ ШАЛГАХ ТЕСТ — асуултын сан ============ */
+const BANK = [
+ {q:"ПТ-35/39-3,4/1,0 турбины хэвийн чадал хэд вэ?",o:["25 МВт","35 МВт","39 МВт","60 МВт"],a:1,e:"Хэвийн чадал 35 МВт, отборгүй ажиллах үеийн боломжит дээд чадал 39 МВт."},
+ {q:"Хурц уурын хэвийн абсолют даралт ба температур",o:["3,4 МПа · 435 °C","1,0 МПа · 292 °C","9,0 МПа · 535 °C","0,12 МПа · 108 °C"],a:0,e:"3,4 МПа (34.67 кгс/см²) ба 435 °C."},
+ {q:"Турбин хэдэн үетэй вэ?",o:["12","15","17","21"],a:2,e:"Нийт 17 үе: ӨДХ 8, ДДХ 5, НДХ 4. 1-р үе нь тохируулах үе."},
+ {q:"Уурын шугамыг халаах дээд хурд",o:["2 °C/мин","5 °C/мин","10 °C/мин","15 °C/мин"],a:1,e:"Уурын ерөнхий болон салаа шугамыг 5 °C/мин-с ихгүй хурдаар халаана."},
+ {q:"Турбинд эргэлт өгөхийг зөвшөөрөх вакуум",o:["33 кПа-аас их","45 кПа-аас их","71 кПа-аас их","85 кПа-аас их"],a:1,e:"Вакуум 45 кПа (абс. даралт 48 кПа)-аас их болоход эргэлт өгнө."},
+ {q:"Явуулах эжекторыг ямар вакуум дээр зогсоох вэ?",o:["33 кПа","45 кПа","60 кПа","71 кПа"],a:3,e:"71 кПа (≈530 мм м.у.б) болоход эхлээд S54-г, дараа нь S32-ыг хаана."},
+ {q:"Үндсэн эжекторын 1-р үед ямар вакуум дээр уур өгөх вэ?",o:["21,6 кПа","33 кПа","45 кПа","71 кПа"],a:1,e:"Вакуум 33 кПа (абс. 60 кПа) болоход 1-р үед уур өгнө."},
+ {q:"S101 гэж ямар хаалт вэ?",o:["Зогсоох хавхлага","Уурын ерөнхий хаалт (ГПЗ)","Бүлэг клапан","Явуулах эжекторын хаалт"],a:1,e:"S101 — уурын ерөнхий хаалт, ГПЗ. Түүний тойруу хаалтууд нь S102, S103."},
+ {q:"S32 хаалт юуг удирддаг вэ?",o:["Үндсэн эжектор","Явуулах эжектор","Нягтруулгын эжектор","Конденсаторын тогоо дүүргэх"],a:1,e:"S32 — явуулах эжекторт уур өгөх цахилгаан хаалт."},
+ {q:"Холхивчийн өмнөх тосны ажлын даралт",o:["25–30 кПа","50–100 кПа","0,4–0,5 МПа","0,9–0,98 МПа"],a:1,e:"Тосны халуун 40–45 °C байхад холхивчийн өмнөх даралт 50–100 кПа."},
+ {q:"Тосны зогсоох насос ямар даралт дээр автоматаар залгагдах вэ?",o:["30 кПа","25 кПа","50 кПа","0,72 МПа"],a:1,e:"30 кПа-д анхааруулах дохио, 25 кПа-д НС автоматаар залгагдана."},
+ {q:"Турбиныг явуулахыг хориглох тосны температур",o:["30 °C-аас бага","40 °C-аас бага","45 °C-аас их","65 °C-аас их"],a:0,e:"Тос хөргөгчийн дараах тосны халуун 30 °C-аас бага үед явуулахыг хориглоно."},
+ {q:"Роторын критик эргэлтүүд",o:["600 ба 1000","1312 ба 1718","1850 ба 2850","2850 ба 3000"],a:1,e:"1312 ба 1718 эрг/мин. Тэдгээрийг 450–500 эрг/мин хурдаар дайрна."},
+ {q:"АХА-ийн ажиллах тавил",o:["3000 эрг/мин","3150 эрг/мин","3300 эрг/мин","3360 эрг/мин"],a:3,e:"АХА нь 56 с⁻¹ = 3360 эрг/мин дээр ажиллана; тавилыг тохируулсны дараа 2 удаа туршина."},
+ {q:"Синхронизаторын эргэлт барих диапазон",o:["2800–3000","2850–3150","3000–3360","2850–3000"],a:1,e:"Дээд байрлалд 2850, доод байрлалд 3150 эрг/мин."},
+ {q:"Ачаалал авах дээд хурд",o:["0,2 МВт/мин","0,4 МВт/мин","0,5 МВт/мин","1,0 МВт/мин"],a:2,e:"0,5 МВт/мин-с ихгүй; хяналтын горимд 0,4 МВт/мин-с ихэсгэхгүй байхыг шаарддаг."},
+ {q:"Отбор залгахыг зөвшөөрөх доод ачаалал",o:["2,0 МВт","10,5 МВт","17,5 МВт","19,5 МВт"],a:1,e:"Хэвийн чадлын 30 % буюу 10,5 МВт. Үүнээс бага үед отбор залгахыг хориглоно."},
+ {q:"Үйлдвэрийн отборын хэвийн параметр",o:["1,0 МПа · 292 °C","0,12 МПа · 108 °C","3,4 МПа · 435 °C","0,69 МПа · 250 °C"],a:0,e:"Үйлдвэрийн отбор 8-р үеийн дараа: 1,0 МПа, 292 °C, 75 т/ц."},
+ {q:"Дулааны отборын хэвийн абсолют даралт",o:["0,1 МПа","0,12 МПа","0,25 МПа","1,0 МПа"],a:1,e:"Дулааны отбор 13-р үеийн дараа, 0,12 МПа (1,2 кгс/см²), 108 °C, 85 т/ц."},
+ {q:"Голын харьцангуй дулаан тэлэлтийн зөвшөөрөгдөх дээд утга",o:["+1,5 мм","+2,0 мм","+2,5 мм","+8,5 мм"],a:2,e:"+2,5 мм-с хэтрэх ёсгүй, +2,0 мм-д дохиолол дугарна."},
+ {q:"Тохируулгын үе орчмын их биеийн дээд-доод t зөрүү хэдээс их бол турбин ажиллах хориотой вэ?",o:["10 °C","30 °C","50 °C","85 °C"],a:2,e:"Явуулах үед 30 °C-с ихгүй байх ёстой; 50 °C-с их бол ажиллах хориотой."},
+ {q:"КЭН-ий шахах талын хаалт АВР-аас хэдэн секундын өмнө нээгдэж эхлэх ёстой вэ?",o:["2 сек","5 сек","10 сек","30 сек"],a:1,e:"Шахах талын цахилгаан хаалт насос АВР-аар залгагдахаас 5 сек өмнө нээгдэж эхэлнэ."},
+ {q:"Насосыг шахах талын хаалт хаалттайгаар хэдэн минутаас удаан явуулахыг хориглох вэ?",o:["1 мин","2 мин","5 мин","10 мин"],a:1,e:"Насосыг усгүй явуулах, мөн шахах хаалт хаалттайгаар 2 мин-аас удаан явуулахыг хориглоно."},
+ {q:"Эжекторуудад уур өгснөөс голд эргэлт өгөх хүртэлх дээд хугацаа",o:["10 мин","20 мин","30 мин","60 мин"],a:2,e:"Хувирсан усыг хэт халаахгүйн тулд 30 мин-с ихгүй байх ёстой."},
+ {q:"Зогсоох үед үндсэн эжекторын уурыг ямар эргэлт дээр бүрэн хаах вэ?",o:["300–400 эрг/мин","480–540 эрг/мин","600 эрг/мин","1000 эрг/мин"],a:1,e:"Эргэлт 8–9 с⁻¹ = 480–540 эрг/мин болоход бүрэн хаана."},
+ {q:"Гол зогссоны дараа ГЭБ-ийг тасралтгүй горимоор хэдэн цаг эргүүлэх вэ?",o:["1 цаг","3 цаг","4 цаг","10 цаг"],a:1,e:"3 цаг тасралтгүй, дараа нь 10 мин тутам 180°-аар 4 цаг."},
+ {q:"Турбин зогссоны дараа тосны явуулах насос хэдэн цаг ажиллах вэ?",o:["3–4 цаг","6–8 цаг","10–12 цаг","24 цаг"],a:2,e:"10–12 цаг; дараа нь голыг эргүүлэх хугацаанд НС-ээр холхивчийг тосоор хангана."},
+ {q:"Зогсоох үед вакуум унаж турбины хамгаалалт ажиллах абсолют даралт",o:["40 кПа","60 кПа","95 кПа","48 кПа"],a:0,e:"60 кПа-д дохиолол дугарч, 40 кПа-д хамгаалалт ажиллана."},
+ {q:"Тосны ерөнхий насосны шахах даралт ямар утганд НП автоматаар залгагдах вэ?",o:["0,68 МПа","0,72 МПа","0,82 МПа","0,98 МПа"],a:1,e:"0,72 МПа-аас багасахад НП автоматаар залгагдана; залгагдахгүй бол 0,68 МПа дээр гараар."},
+ {q:"Холхивчийн доргионы дээд хязгаар (босоо, хөндлөн чиглэл)",o:["25 мкм","40 мкм","2,8 мм","8,5 мм"],a:0,e:"Босоо ба хөндлөн чиглэлд 2,8 мм/с буюу 25 мкм; голын дагуу 40 мкм."},
+ {q:"Мнемо схем дээр улаан өнгө юуг илэрхийлэх вэ?",o:["Хаалттай / зогссон","Нээлттэй / ажилд залгагдсан","Аваарийн төлөв","Гар удирдлага"],a:1,e:"Станцын мнемо дүрмээр улаан — нээлттэй/ажилд, ногоон — хаалттай/зогссон."},
+ {q:"Бүлэг клапаныг гараар хаах сэлгүүрийг хэзээ ашиглах вэ?",o:["Ачаалал авах үед","Уурын шугамыг уурын хайрцаг хүртэл халаах үед","Отбор залгах үед","Вакуум таслах үед"],a:1,e:"ГПЗ-ээс уурын хайрцаг хүртэл халаахад бүлэг клапанг гараар хааж, уурыг зөвхөн шугамд барина."},
+ {q:"Турбины үндсэн халалт хэвийн ачааллын хэдэн хувьд явагддаг вэ?",o:["30 %","50 %","70 %","100 %"],a:1,e:"50 %-д; иймд 19,5 МВт дээр 15 мин, отбортой үед 17,5 МВт дээр 20 мин халаана."},
+ {q:"Хүйтэн байдлаас явуулах гэдэг нь зогссоноос хойш хэдэн цаг өнгөрсөн үе вэ?",o:["1 цаг дотор","10 цагаас бага","10–72 цаг","72 цагаас их"],a:3,e:"72 цагаас их өнгөрсөн, их биеийн доод хэсгийн t ≤170 °C."},
+ {q:"Хүйтэн байдлаас турбиныг 3000 эрг/мин хүргэх нийт хугацаа",o:["15 мин","20 мин","42 мин","60 мин"],a:3,e:"Хүйтэн байдлаас 60 мин; бүрэн хөрөөгүй байдлаас 42 мин; халуунаас 20 ба 15 мин."},
+ {q:"S62 хаалт ямар үүрэгтэй вэ?",o:["ӨДХ руу тэжээлийн ус оруулах","ӨДХ-ийг тойрох тэжээлийн усны шугам","НДХ-д уур өгөх","Конденсаторын дренаж"],a:1,e:"S62 — тэжээлийн усны ӨДХ-ийг тойрох шугамын хаалт. ӨДХ тасрахад автоматаар нээгдэнэ."},
+ {q:"Сул эргэлтийн үеийн конденсаторын абсолют даралтын дээд утга",o:["4,5 кПа","8,0 кПа","21,6 кПа","48 кПа"],a:1,e:"Хэвийн сул эргэлтийн үед 8,0 кПа-с ихгүй байна."},
+ {q:"Нягтруулгын камерт үүсгэх илүүдэл даралт",o:["0,003–0,010 МПа","0,02–0,03 МПа","0,3–0,5 МПа","0,69 МПа"],a:0,e:"3–10 кПа (0,03–0,10 кгс/см²). Нягтруулгын эжекторын сийрэгжилт 0,02–0,03 кгс/см²."},
+ {q:"Захлопкуудын алсын унтраалга ямар ачаалал дээр автоматаар ажиллах вэ?",o:["2,0 МВт-аас бага","10,5 МВт-аас бага","19,5 МВт-аас бага","35 МВт дээр"],a:1,e:"Цахилгаан ачаалал 10,5 МВт (хэвийн ачааллын 30 %)-аас бага болоход автоматаар ажиллана."},
+ {q:"Уурын шугамыг халаах шатлал аль нь зөв бэ?",o:["ГПЗ → 3п5 → бүлэг клапан → турбин","3п5 → ГПЗ → бүлэг клапан → турбин","Турбин → бүлэг клапан → ГПЗ → 3п5","3п5 → бүлэг клапан → ГПЗ → турбин"],a:1,e:"3п5 хаалт → уурын ерөнхий хаалт → бүлэг клапан → бүлэг клапангаас хойш (турбин)."}
+];
+</script>
+<script>
+/* =============== туслах =============== */
+const $ = s => document.querySelector(s);
+const el = (t,c,h) => { const n=document.createElement(t); if(c)n.className=c; if(h!==undefined)n.innerHTML=h; return n; };
+const pad = n => String(n).padStart(2,"0");
+const now = () => { const d=new Date(); return pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds()); };
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+/* =============== толгой =============== */
+setInterval(()=>{const d=new Date();
+  $("#clock").textContent = d.getFullYear()+"."+pad(d.getMonth()+1)+"."+pad(d.getDate())+"  "+now();},500);
+
+document.getElementById("tabs").addEventListener("click",e=>{
+  const b=e.target.closest(".tab"); if(!b)return;
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t===b));
+  document.querySelectorAll("main section").forEach(s=>s.classList.toggle("on",s.id===b.dataset.go));
+  window.scrollTo({top:0});
+});
+
+/* хаалтын хүснэгт */
+(()=>{const tb=$("#valvetbl tbody");
+ VALVES.forEach(v=>{const tr=el("tr");
+  tr.innerHTML=`<td><span class="step-tag" style="font-family:'Oswald';font-weight:600;color:var(--cyan)">${v[0]}</span></td><td>${v[1]}</td><td style="color:var(--muted)">${v[2]}</td>`;
+  tb.appendChild(tr);});})();
+
+/* =============== СИМУЛЯТОР ХӨДӨЛГҮҮР =============== */
+const SIM = {
+ st:{
+  start:{data:START,p:null,stage:0,done:[],err:0,log:[],base:P0},
+  stop:{data:STOP, p:null,stage:0,done:[],err:0,log:[],base:P_RUN}
+ },
+ init(){ this.reset("start"); this.reset("stop"); },
+ reset(k){
+   const s=this.st[k];
+   s.p=Object.assign({},s.base); s.stage=0; s.err=0; s.log=[];
+   s.done=s.data.map(x=>x.steps.map(()=>false));
+   this.log(k,"Симулятор эхлэв — "+(k==="start"?"явуулах":"зогсоох")+" горим","");
+   this.render(k);
+ },
+ log(k,msg,cls){ this.st[k].log.unshift({t:now(),m:msg,c:cls||""}); },
+ stageDone(k,i){ return this.st[k].done[i].every(Boolean); },
+ render(k){
+   const s=this.st[k], pre=k;
+   // үе шатууд
+   const sb=$("#"+pre+"Stages"); sb.innerHTML="";
+   s.data.forEach((st,i)=>{
+     const b=el("button","st"+(i===s.stage?" on":"")+(this.stageDone(k,i)?" done":"")+(i>0&&!this.stageDone(k,i-1)&&i!==s.stage?" lock":""),
+       st.n.split(" · ")[0]+" "+(this.stageDone(k,i)?"✓":""));
+     b.title=st.n;
+     b.onclick=()=>{ if(i>0&&!this.stageDone(k,i-1)){this.log(k,"Өмнөх үе шат дуусаагүй байна","err");this.render(k);return;} s.stage=i; this.render(k); };
+     sb.appendChild(b);
+   });
+   const cur=s.data[s.stage];
+   $("#"+pre+"StageT").textContent=cur.n;
+   $("#"+pre+"StageN").textContent=s.done[s.stage].filter(Boolean).length+" / "+cur.steps.length;
+   $("#"+pre+"Note").innerHTML=cur.note?`<div class="tip">${cur.note}</div>`:"";
+   // алхмууд
+   const box=$("#"+pre+"Steps"); box.innerHTML="";
+   cur.steps.forEach((stp,i)=>{
+     const d=el("div","step"+(s.done[s.stage][i]?" done":""));
+     d.innerHTML=`<div class="n">${i+1}</div><div class="tx">${stp.tag?`<span class="tag">${stp.tag}</span>`:""}${stp.t}
+       ${stp.note?`<span class="note">${stp.note}</span>`:""}
+       ${stp.danger&&s.done[s.stage][i]?`<div class="danger" style="margin:8px 0 0">${stp.danger}</div>`:""}</div>`;
+     if(!s.done[s.stage][i]) d.onclick=()=>this.doStep(k,i);
+     box.appendChild(d);
+   });
+   // гүйцэтгэл
+   this.gauges(k); this.journal(k); this.score(k); this.mnemo(k);
+ },
+ doStep(k,i){
+   const s=this.st[k], cur=s.data[s.stage];
+   const next=s.done[s.stage].findIndex(x=>!x);
+   if(i!==next){
+     s.err++;
+     this.log(k,"Дараалал зөрчигдөв: "+(i+1)+"-р үйлдлийг эрт гүйцэтгэх гэв. Хүлээгдэж буй нь "+(next+1)+"-р үйлдэл","err");
+     this.render(k);
+     const node=$("#"+k+"Steps").children[i]; if(node){node.classList.add("bad");setTimeout(()=>node.classList.remove("bad"),320);}
+     return;
+   }
+   s.done[s.stage][i]=true;
+   if(cur.steps[i].set) Object.assign(s.p,cur.steps[i].set);
+   this.log(k,(cur.steps[i].tag?cur.steps[i].tag+" — ":"")+cur.steps[i].t,"ok");
+   if(this.stageDone(k,s.stage)){
+     this.log(k,"✔ "+cur.n+" — дууссан","ok");
+     if(s.stage<s.data.length-1) s.stage++;
+     else this.log(k,"★ Бүх үе шат гүйцэтгэгдлээ","ok");
+   }
+   this.render(k);
+ },
+ gauges(k){
+   const s=this.st[k], g=$("#"+k+"Gauges"); g.innerHTML="";
+   GAUGES.forEach(gg=>{
+     const v=s.p[gg.k]||0, pct=Math.min(100,v/gg.max*100);
+     let cls="";
+     if(gg.k==="oilT"&&v>0&&v<30) cls="alarm";
+     if(gg.k==="exp"&&v>=2.0) cls="alarm";
+     if(gg.k==="rpm"&&v>3300) cls="alarm";
+     if(gg.k==="vac"&&v>=45) cls="ok";
+     const d=el("div","g "+cls);
+     d.innerHTML=`<div class="gl">${gg.l}</div><div class="gv">${v.toFixed(gg.d)}<small>${gg.u}</small></div>
+                  <div class="bar"><i style="width:${pct}%"></i></div>`;
+     g.appendChild(d);
+   });
+ },
+ journal(k){
+   const j=$("#"+k+"Jrn"); j.innerHTML="";
+   this.st[k].log.slice(0,60).forEach(r=>j.appendChild(el("div",r.c,`<span>${r.t}</span>${r.m}`)));
+ },
+ score(k){
+   const s=this.st[k];
+   const tot=s.data.reduce((a,b)=>a+b.steps.length,0);
+   const dn=s.done.reduce((a,b)=>a+b.filter(Boolean).length,0);
+   const acc=dn+s.err?Math.round(dn/(dn+s.err)*100):100;
+   $("#"+k+"Score").innerHTML=`<dl class="kv">
+     <dt>Гүйцэтгэсэн үйлдэл</dt><dd>${dn} / ${tot}</dd>
+     <dt>Дарааллын алдаа</dt><dd style="color:${s.err?'var(--red)':'var(--green)'}">${s.err}</dd>
+     <dt>Нарийвчлал</dt><dd>${acc} %</dd></dl>`;
+ },
+ mnemo(k){
+   // зөвхөн идэвхтэй хэсгийн төлөвийг харуулна
+   const active = document.querySelector("section.on")?.id;
+   const s = (active==="stop")?this.st.stop:this.st.start;
+   const m=$("#mnemo"); m.innerHTML="";
+   MNEMO.forEach((n,i)=>{
+     if(i) { const p=el("div","pipe"+(s.p[MNEMO[i-1][1]]?" hot":"")); m.appendChild(p); }
+     const d=el("div","node"+(s.p[n[1]]?" open":""));
+     d.innerHTML=`<div class="dot"></div><div class="lab">${n[0]}</div>`;
+     m.appendChild(d);
+   });
+ }
+};
+$("#startCount").textContent=START.reduce((a,b)=>a+b.steps.length,0);
+SIM.init();
+document.getElementById("tabs").addEventListener("click",()=>SIM.mnemo("start"));
+
+/* =============== ДИАГРАММУУД =============== */
+$("#startDiag").innerHTML=`
+<div class="card"><div class="card-h"><span class="t">Хүйтэн байдлаас явуулах график</span><span class="badge" style="margin-left:auto">зогссоноос хойш &gt;72 цаг · t доод хэсэг ≤170 °C</span></div>
+<div class="card-b"><svg viewBox="0 0 660 300" style="width:100%;height:auto">
+ <g stroke="#2E3E4C" stroke-width="1">
+  ${[0,1,2,3,4,5,6].map(i=>`<line x1="60" y1="${250-i*35}" x2="620" y2="${250-i*35}"/>`).join("")}
+ </g>
+ ${[0,10,20,30,40,50,60].map(t=>`<line x1="${60+t*9.2}" y1="40" x2="${60+t*9.2}" y2="250" stroke="#1E2933"/><text class="lbl" x="${60+t*9.2}" y="266" text-anchor="middle">${t}</text>`).join("")}
+ ${[0,600,1000,1312,1718,2850,3000].map(r=>`<text class="lbl" x="54" y="${254-r/3000*210}" text-anchor="end">${r}</text>`).join("")}
+ <polyline fill="none" stroke="#F0B429" stroke-width="2.5" points="
+  60,250 70,208 130,208 158,180 232,180 268,158 288,130 297,130 306,50 316,50 325,40 390,40 445,40"/>
+ <circle cx="268" cy="158" r="4" fill="#E0503F"/><text class="lbl2" x="274" y="152">А 1312</text>
+ <circle cx="288" cy="130" r="4" fill="#E0503F"/><text class="lbl2" x="294" y="124">Б 1718</text>
+ <circle cx="306" cy="50" r="4" fill="#4CB9D6"/><text class="lbl2" x="230" y="46">В тохируулгын систем</text>
+ <circle cx="325" cy="40" r="4" fill="#2FAE66"/><text class="lbl2" x="332" y="34">Г 3000 · сүлжээнд залгана</text>
+ <text class="lbl" x="340" y="286" text-anchor="middle">хугацаа, мин</text>
+ <text class="lbl" x="16" y="140" transform="rotate(-90 16 140)" text-anchor="middle">эргэлт, эрг/мин</text>
+</svg>
+<div class="row" style="margin-top:6px"><span class="badge a">600 эрг/мин — 10 мин халаалт</span><span class="badge a">1000 эрг/мин — 12 мин халаалт</span><span class="badge r">критик эргэлт — 450–500 эрг/мин хурдаар дайрна</span></div>
+</div></div>
+
+<div class="card" style="margin-top:14px"><div class="card-h"><span class="t">Вакуумын босго</span></div><div class="card-b">
+<svg viewBox="0 0 660 130" style="width:100%;height:auto">
+ <rect x="40" y="52" width="580" height="16" fill="#1E2933" stroke="#2E3E4C"/>
+ <rect x="40" y="52" width="${33/90*580}" height="16" fill="#1A4655"/>
+ <rect x="${33/90*580+40}" y="52" width="${12/90*580}" height="16" fill="#2E3E4C"/>
+ <rect x="${45/90*580+40}" y="52" width="${40/90*580}" height="16" fill="#174C2E"/>
+ ${[[33,"33 кПа · үндсэн эжекторын 1-р үе","#4CB9D6"],[45,"45 кПа · эргэлт өгөхийг зөвшөөрнө","#F0B429"],[71,"71 кПа · явуулах эжекторыг зогсооно","#2FAE66"]]
+   .map(([v,l,c],i)=>`<line x1="${v/90*580+40}" y1="${i%2?30:70}" x2="${v/90*580+40}" y2="${i%2?52:68+22}" stroke="${c}" stroke-width="2"/>
+   <text class="lbl2" x="${v/90*580+40}" y="${i%2?24:108}" text-anchor="middle" fill="${c}">${l}</text>`).join("")}
+ <text class="lbl" x="40" y="82" text-anchor="start">0</text><text class="lbl" x="620" y="82" text-anchor="end">90 кПа</text>
+</svg></div></div>`;
+
+$("#stopDiag").innerHTML=`
+<div class="card"><div class="card-h"><span class="t">Зогсоолтын дараах хөргөлтийн горим</span></div><div class="card-b">
+<svg viewBox="0 0 660 200" style="width:100%;height:auto">
+ ${[["Гол зогсов",0],["ГЭБ тасралтгүй · 3 цаг",1],["ГЭБ 180°/10 мин · 4 цаг",2],["ГЭБ 180° · давтамж графикаар",3]].map(([l,i])=>
+  `<rect x="${40+i*150}" y="40" width="140" height="34" fill="${i?"#1E2933":"#253340"}" stroke="#2E3E4C"/>
+   <text class="lbl2" x="${110+i*150}" y="61" text-anchor="middle">${l}</text>`).join("")}
+ <line x1="40" y1="96" x2="620" y2="96" stroke="#3D5163"/>
+ ${[["0 ц",40],["3 ц",190],["7 ц",340],["30 ц хүртэл",540]].map(([l,x])=>
+  `<line x1="${x}" y1="90" x2="${x}" y2="102" stroke="#3D5163"/><text class="lbl" x="${x}" y="116" text-anchor="middle">${l}</text>`).join("")}
+ <rect x="40" y="132" width="300" height="30" fill="#231D0E" stroke="#8A6410"/>
+ <text class="lbl2" x="190" y="152" text-anchor="middle">НП тосны явуулах насос · 10–12 цаг</text>
+ <rect x="340" y="132" width="280" height="30" fill="#17202A" stroke="#2E3E4C"/>
+ <text class="lbl2" x="480" y="152" text-anchor="middle">НС зогсоох насосоор холхивчийг тосолно</text>
+ <text class="lbl" x="40" y="182">Буцаан явуулах хугацаанаас хамаарч: 6 ц дотор — 0,5 ц тутам · 24 ц дотор — 1,0 ц тутам · удаан зогсоох — 2,0 ц тутам 30 цагийн турш</text>
+</svg></div></div>`;
+</script>
+<script>
+/* =============== ДАСГАЛ АЖИЛ =============== */
+const DRILL = {
+ tabs:[["d1","Хаалт таних"],["d2","Дараалал угсрах"],["d3","Хязгаарын утга"],["d4","Явуулах график"]],
+ cur:"d1",
+ init(){
+   const t=$("#drillTabs"); t.innerHTML="";
+   this.tabs.forEach(([k,n])=>{const b=el("button","st"+(k===this.cur?" on":""),n);b.onclick=()=>{this.cur=k;this.init();};t.appendChild(b);});
+   this["r_"+this.cur]();
+ },
+ /* --- Д1 --- */
+ r_d1(){
+   const b=$("#drillBody"); b.innerHTML="";
+   b.appendChild(el("p","lead","Хаалтын тэмдэглэгээнд харгалзах нэрийг сонгоно уу. Эдгээр дугаар нь Автонет удирдлагын системийн дэлгэц дээрхтэй нийцнэ."));
+   if(!this.q1) this.q1=shuffle(D_VALVE).map(v=>({tag:v[0],a:v[1],opts:shuffle([v[1],...v[2]])}));
+   this.q1.forEach((q,i)=>{
+     const c=el("div","q");
+     c.innerHTML=`<div class="q-h"><b>${i+1}</b>«${q.tag}» хаалт юу вэ?</div>`;
+     const o=el("div","opts");
+     q.opts.forEach((t,j)=>{
+       const d=el("div","opt",`<span class="k">${"АБВГ"[j]}</span><span>${t}</span>`);
+       d.onclick=()=>{
+         if(c.dataset.ans)return; c.dataset.ans=1;
+         o.querySelectorAll(".opt").forEach((x,xi)=>{ if(q.opts[xi]===q.a)x.classList.add("right"); });
+         if(t!==q.a) d.classList.add("wrong");
+         c.appendChild(el("div","expl",t===q.a?"Зөв.":"Зөв хариулт: "+q.a));
+         this.tally();
+       };
+       o.appendChild(d);
+     });
+     c.appendChild(o); b.appendChild(c);
+   });
+   b.appendChild(el("div","",'<button class="btn" onclick="DRILL.q1=null;DRILL.init()">Дахин холих</button>'));
+ },
+ /* --- Д2 --- */
+ r_d2(){
+   const b=$("#drillBody"); b.innerHTML="";
+   b.appendChild(el("p","lead","Үйлдлүүдийг зөв дарааллаар нь дарж дугаарлана уу. Дараа нь «Шалгах» товчийг дарна."));
+   D_ORDER.forEach((set,si)=>{
+     const c=el("div","card"); c.style.marginBottom="14px";
+     c.innerHTML=`<div class="card-h"><span class="t">${set.t}</span></div>`;
+     const body=el("div","card-b"); const list=el("div","sortlist");
+     const order=[];
+     shuffle(set.items).forEach(txt=>{
+       const it=el("div","sortitem",`<span class="h">—</span><span>${txt}</span>`);
+       it.onclick=()=>{
+         if(it.dataset.pos) return;
+         order.push(txt); it.dataset.pos=order.length;
+         it.querySelector(".h").textContent=order.length;
+         it.style.borderColor="var(--line2)";
+       };
+       list.appendChild(it);
+     });
+     body.appendChild(list);
+     const res=el("div"); res.style.marginTop="10px";
+     const bar=el("div","row"); bar.style.marginTop="10px";
+     const chk=el("button","btn pri","Шалгах");
+     chk.onclick=()=>{
+       let right=0;
+       list.querySelectorAll(".sortitem").forEach(it=>{
+         const p=+it.dataset.pos, txt=it.lastChild.textContent;
+         const correct = set.items[p-1]===txt;
+         it.classList.add(correct?"right":"wrong"); if(correct)right++;
+       });
+       res.innerHTML=`<div class="expl" style="border-top:0;padding-left:0">Зөв байрлалд: <b style="color:${right===set.items.length?'var(--green)':'var(--amber)'}">${right} / ${set.items.length}</b>.
+        <ol style="margin:8px 0 0;padding-left:20px;line-height:1.7">${set.items.map(x=>"<li>"+x+"</li>").join("")}</ol></div>`;
+     };
+     const rst=el("button","btn","Цэвэрлэх"); rst.onclick=()=>this.r_d2();
+     bar.appendChild(chk); bar.appendChild(rst); body.appendChild(bar); body.appendChild(res);
+     c.appendChild(body); b.appendChild(c);
+   });
+ },
+ /* --- Д3 --- */
+ r_d3(){
+   const b=$("#drillBody"); b.innerHTML="";
+   b.appendChild(el("p","lead","Ашиглалтын зааврын хязгаарын утгыг оруулна уу. Бутархайг таслалаар биш цэгээр бичнэ (жишээ: 2.5)."));
+   const c=el("div","card"); const bd=el("div","card-b");
+   c.innerHTML=`<div class="card-h"><span class="t">Хязгаарын утгын шалгалт</span></div>`;
+   D_NUM.forEach((q,i)=>{
+     const row=el("div"); row.style.cssText="display:flex;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);flex-wrap:wrap";
+     row.innerHTML=`<div style="flex:1;min-width:260px">${i+1}. ${q.q}</div>`;
+     const inp=el("input"); inp.className="numin"; inp.type="text"; inp.placeholder="?";
+     const u=el("span"); u.style.cssText="color:var(--muted);min-width:60px;font-size:13px"; u.textContent=q.u;
+     const ex=el("div"); ex.style.cssText="flex-basis:100%;font-size:13px;color:var(--ink2)";
+     inp.onchange=()=>{
+       const v=parseFloat(inp.value.replace(",","."));
+       const ok=Math.abs(v-q.a)<=(q.tol||0)+1e-9;
+       inp.classList.remove("right","wrong"); inp.classList.add(ok?"right":"wrong");
+       ex.innerHTML=(ok?"<b style='color:var(--green)'>Зөв. </b>":`<b style='color:var(--red)'>Зөв утга: ${q.a} ${q.u}. </b>`)+q.e;
+     };
+     row.appendChild(inp); row.appendChild(u); row.appendChild(ex);
+     bd.appendChild(row);
+   });
+   c.appendChild(bd); b.appendChild(c);
+ },
+ /* --- Д4 --- */
+ r_d4(){
+   const b=$("#drillBody"); b.innerHTML="";
+   b.appendChild(el("p","lead","Турбиныг дулааны төлвөөс нь хамааруулан явуулах графикийн мэдлэгээ шалгана."));
+   const tb=el("div","scroll");
+   tb.innerHTML=`<table><thead><tr><th>Эргэлт</th><th>Хүйтэн &gt;72 ц</th><th>Бүрэн хөрөөгүй 10–72 ц</th><th>Халуун &lt;10 ц</th><th>Хэт халуун &lt;1 ц</th></tr></thead><tbody>
+   <tr><td>600 эрг/мин хүртэл</td><td class="num">200 эрг/мин · 3 мин</td><td class="num">300 эрг/мин · 2 мин</td><td>—</td><td>—</td></tr>
+   <tr><td>600 эрг/мин халаах</td><td class="num">10 мин</td><td class="num">6 мин</td><td>—</td><td>—</td></tr>
+   <tr><td>1000 эрг/мин хүртэл</td><td class="num">50 эрг/мин · 8 мин</td><td class="num">6 мин</td><td>—</td><td>—</td></tr>
+   <tr><td>1000 эрг/мин халаах</td><td class="num">12 мин</td><td class="num">8 мин</td><td>—</td><td>—</td></tr>
+   <tr><td>1280 эрг/мин хүртэл</td><td class="num">6 мин</td><td class="num">4 мин</td><td class="num">10 мин</td><td class="num">7 мин</td></tr>
+   <tr><td>1850 эрг/мин халаах</td><td class="num">3 мин</td><td class="num">2 мин</td><td class="num">1 мин</td><td class="num">1 мин</td></tr>
+   <tr><td>2850 эрг/мин хүртэл</td><td class="num">13 мин</td><td class="num">10 мин</td><td class="num">7 мин</td><td class="num">5 мин</td></tr>
+   <tr><td>2850 эрг/мин халаах</td><td class="num">2 мин</td><td class="num">2 мин</td><td class="num">1 мин</td><td class="num">1 мин</td></tr>
+   <tr><td>3000 эрг/мин халаах</td><td class="num">3 мин</td><td class="num">2 мин</td><td class="num">1 мин</td><td class="num">1 мин</td></tr>
+   <tr><th>Нийт</th><th class="num">60 мин</th><th class="num">42 мин</th><th class="num">20 мин</th><th class="num">15 мин</th></tr>
+   </tbody></table>`;
+   b.appendChild(tb);
+   D_GRAPH.forEach((q,i)=>{
+     const c=el("div","q"); c.innerHTML=`<div class="q-h"><b>${i+1}</b>${q.q}</div>`;
+     const o=el("div","opts");
+     q.o.forEach((t,j)=>{
+       const d=el("div","opt",`<span class="k">${"АБВГ"[j]}</span><span>${t}</span>`);
+       d.onclick=()=>{
+         if(c.dataset.ans)return; c.dataset.ans=1;
+         o.children[q.a].classList.add("right");
+         if(j!==q.a) d.classList.add("wrong");
+         c.appendChild(el("div","expl",q.e));
+       };
+       o.appendChild(d);
+     });
+     c.appendChild(o); b.appendChild(c);
+   });
+ },
+ tally(){}
+};
+DRILL.init();
+
+/* =============== АВААРЬ ЭСЭРГҮҮЦЭХ =============== */
+const EM={done:0,right:0};
+(()=>{
+ const b=$("#emergBody"); b.innerHTML="";
+ EMERG.forEach((sc,i)=>{
+   const c=el("div","card"); c.style.marginBottom="14px";
+   c.innerHTML=`<div class="card-h"><span class="t">Сценари ${i+1} · ${sc.t}</span></div>`;
+   const bd=el("div","card-b");
+   bd.appendChild(el("div","danger",sc.s));
+   bd.appendChild(el("div","",`<div style="color:var(--muted);font-size:13px;margin:10px 0 6px">Операторын эхний үйлдэл:</div>`));
+   const o=el("div","opts"); o.style.padding="0";
+   const opts=shuffle(sc.o);
+   opts.forEach((op,j)=>{
+     const d=el("div","opt",`<span class="k">${"АБВГ"[j]}</span><span>${op.t}</span>`);
+     d.onclick=()=>{
+       if(c.dataset.ans)return; c.dataset.ans=1;
+       o.querySelectorAll(".opt").forEach((x,xi)=>{ if(opts[xi].ok)x.classList.add("right"); });
+       if(!op.ok) d.classList.add("wrong");
+       bd.appendChild(el("div","expl",op.e));
+       EM.done++; if(op.ok)EM.right++;
+       $("#emergScore").innerHTML=`<dl class="kv"><dt>Гүйцэтгэсэн төлөв</dt><dd>${EM.done} / ${EMERG.length}</dd>
+         <dt>Зөв шийдвэр</dt><dd style="color:${EM.right===EM.done?'var(--green)':'var(--amber)'}">${EM.right}</dd>
+         <dt>Үнэлгээ</dt><dd>${Math.round(EM.right/EM.done*100)} %</dd></dl>`;
+     };
+     o.appendChild(d);
+   });
+   bd.appendChild(o); c.appendChild(bd); b.appendChild(c);
+ });
+})();
+
+/* =============== ШАЛГАХ ТЕСТ =============== */
+const EXAM={
+ qs:[],ans:[],t:900,tick:null,person:null,
+ start(){
+   const s=$("#exSur").value.trim(), n=$("#exName").value.trim();
+   if(!s||!n){alert("Овог, нэрээ бүрэн бөглөнө үү.");return;}
+   this.person={s,n,j:$("#exJob").value,at:new Date()};
+   this.qs=shuffle(BANK).slice(0,20).map(q=>{
+     const correct=q.o[q.a], o=shuffle(q.o);
+     return {q:q.q,o,a:o.indexOf(correct),e:q.e};
+   });
+   this.ans=new Array(20).fill(-1); this.t=900;
+   $("#examLogin").style.display="none"; $("#examDone").style.display="none"; $("#examRun").style.display="block";
+   this.render(); this.tick=setInterval(()=>this.clock(),1000);
+ },
+ clock(){
+   this.t--; const m=Math.floor(this.t/60), s=this.t%60;
+   const e=$("#exTimer"); e.textContent=pad(m)+":"+pad(s); e.classList.toggle("warn",this.t<=120);
+   if(this.t<=0) this.finish(true);
+ },
+ render(){
+   const b=$("#examQs"); b.innerHTML="";
+   this.qs.forEach((q,i)=>{
+     const c=el("div","q"); c.innerHTML=`<div class="q-h"><b>${i+1}</b>${q.q}</div>`;
+     const o=el("div","opts");
+     q.o.forEach((t,j)=>{
+       const d=el("div","opt"+(this.ans[i]===j?" sel":""),`<span class="k">${"АБВГ"[j]}</span><span>${t}</span>`);
+       d.onclick=()=>{ this.ans[i]=j;
+         o.querySelectorAll(".opt").forEach((x,xi)=>x.classList.toggle("sel",xi===j));
+         this.progress(); };
+       o.appendChild(d);
+     });
+     c.appendChild(o); b.appendChild(c);
+   });
+   this.progress();
+ },
+ progress(){
+   const done=this.ans.filter(x=>x>=0).length;
+   $("#exCount").textContent=done+" / 20";
+   $("#exProg").style.width=(done/20*100)+"%";
+ },
+ finish(auto){
+   if(!auto){
+     const left=this.ans.filter(x=>x<0).length;
+     if(left && !confirm(left+" асуулт хариулаагүй байна. Дуусгах уу?")) return;
+   }
+   clearInterval(this.tick);
+   let right=0; this.qs.forEach((q,i)=>{ if(this.ans[i]===q.a)right++; });
+   const pct=Math.round(right/20*100), pass=pct>=70;
+   $("#examRun").style.display="none"; $("#examDone").style.display="block";
+   const d=$("#examDone");
+   d.innerHTML=`<div class="card"><div class="card-h"><span class="t">Шалгалтын дүн</span>
+     <span class="badge ${pass?'g':'r'}" style="margin-left:auto">${pass?"ТЭНЦСЭН":"ТЭНЦЭЭГҮЙ"}</span></div>
+    <div class="card-b">
+     <div class="score"><div class="big" style="color:${pass?'var(--green)':'var(--red)'}">${pct}<span style="font-size:34px">%</span></div>
+      <div class="verdict ${pass?'pass':'fail'}">${right} / 20 зөв хариулт</div>
+      <div style="color:var(--muted);font-size:13px;margin-top:8px">Тэнцэх босго 70 % · зарцуулсан хугацаа ${pad(Math.floor((900-this.t)/60))}:${pad((900-this.t)%60)}</div></div>
+     <dl class="kv" style="max-width:420px;margin:0 auto">
+      <dt>Овог, нэр</dt><dd>${this.person.s} ${this.person.n}</dd>
+      <dt>Албан тушаал</dt><dd>${this.person.j}</dd>
+      <dt>Огноо</dt><dd>${this.person.at.toLocaleString("mn-MN")}</dd>
+      <dt>Тоноглол</dt><dd>ПТ-35/39-3,4/1,0</dd></dl>
+     <div class="row" style="justify-content:center;margin-top:18px">
+      <button class="btn pri" onclick="window.print()">Дүнг хэвлэх</button>
+      <button class="btn" onclick="EXAM.review()">Хариултыг харах</button>
+      <button class="btn gh" onclick="EXAM.again()">Дахин өгөх</button></div>
+    </div></div><div id="exReview"></div>`;
+   window.scrollTo({top:0});
+ },
+ review(){
+   const b=$("#exReview"); b.innerHTML="<h3>Хариултын задаргаа</h3>";
+   this.qs.forEach((q,i)=>{
+     const ok=this.ans[i]===q.a;
+     const c=el("div","q"); c.innerHTML=`<div class="q-h"><b>${i+1}</b>${q.q} <span class="badge ${ok?'g':'r'}" style="margin-left:6px">${ok?'зөв':'алдаа'}</span></div>`;
+     const o=el("div","opts");
+     q.o.forEach((t,j)=>{
+       let cl="opt"; if(j===q.a)cl+=" right"; else if(j===this.ans[i])cl+=" wrong";
+       o.appendChild(el("div",cl,`<span class="k">${"АБВГ"[j]}</span><span>${t}</span>`));
+     });
+     c.appendChild(o); c.appendChild(el("div","expl",q.e)); b.appendChild(c);
+   });
+ },
+ again(){ $("#examDone").style.display="none"; $("#examLogin").style.display="block"; }
+};
+</script>
+</body>
+</html>
